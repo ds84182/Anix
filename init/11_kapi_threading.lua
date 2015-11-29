@@ -1,4 +1,4 @@
---Upcomming: The great threading refactor
+--Upcomming: The great threading refactor (Which was already finished by the way. This is just a reference comment at this point)
 --Instead of having processes (bunch of coroutines) that invoke threads (bunch of coroutines)
 --Merge them together!
 --Processes are abstracted into a thread group, the main thread is the thread that started it all
@@ -10,15 +10,17 @@
 --And the code for zero, filesystem, and startup should not change
 
 --Reference benchmark values:
+	--Old Core (You'll NEVER see the Old Core! MUHAHAHAHA):
 	--filesystem.lua process load: 0.18ms
 	--startup.lua loading handle open: 1.58 ms
 	--startup.lua loading handle open+handle read stream+join: 4.52 ms
 	--startup.lua loading startup list handle open+FS service get+zeroapi init: 3.48ms
 	
-	--0.159ms
-	--1.084ms
-	--3.090ms
-	--2.479ms
+	--New Core (Or Current Core...):
+	--filesystem.lua process load: 0.159ms
+	--startup.lua loading handle open: 1.000ms
+	--startup.lua loading handle open+handle read stream+join: 2.443ms
+	--startup.lua loading startup list handle open+FS service get+zeroapi init: 2.479ms
 
 function kapi.patches.threading(env, pid, trustLevel)
 	--[[local threads = {}

@@ -169,7 +169,6 @@ else
 	fs:invoke("open", "/sec/bin/startup.lua", "r"):after(function(handle)
 		os.logf("ZERO", "%s ms", (os.clock()-a)*1000)
 		local stream = await(fs:invoke("readAsStream", handle, math.huge))
-		os.logf("ZERO", "%s", stream)
 		stream:join():after(function(source)
 			os.logf("ZERO", "%s ms", (os.clock()-a)*1000)
 			assert(proc.spawn(source, "startup", nil, {API = zero.createNewAPIStream()}))

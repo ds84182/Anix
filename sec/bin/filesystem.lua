@@ -161,9 +161,7 @@ function fs.open(pid, path, mode)
 	local fh, err = await(mount:invoke("open", subpath))
 	
 	if fh then
-		os.logf("FS", "File handle: %d", fh)
 		local handle = kobject.newHandle()
-		os.logf("FS", "KHandle: %d", handle:getId())
 		
 		fileHandles[handle:getId()] = {handle = fh, mount = mount, path = path, subpath = subpath}
 		kHandleReferences[handle] = true
@@ -205,7 +203,6 @@ function fs.readAsStream(pid, handle, blockSize)
 				break
 			end
 		end
-		os.logf("READASSTREAM", "INVOKE CLOSE")
 		writeStream:close()
 	end, "read_stream_"..handleRef.path.."_"..handle:getId())
 	

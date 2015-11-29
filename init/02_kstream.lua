@@ -21,32 +21,15 @@ function ReadStream.__index:init()
 		callback = nil,
 		onCloseCallback = nil
 	}
-	
-	--[[local count = 0
-	for i, v in pairs(data.readStreams) do
-		count = count+1
-	end
-	if count > 1 then
-		os.logf("READSTREAM", "%d others listening", count-1)
-	end]]
-	
-	--[[for other in pairs(kobject.instancesOf(self)) do
-		if kobject.isA(other, WriteStream) then
-			os.logf("READSTREAM", "%s", tostring(other))
-			other:notify({type = "stream_connected", stream = self})
-		end
-	end]]
 end
 
 function ReadStream.__index:initClone(other)
 	kobject.checkType(self, ReadStream)
 	
 	if kobject.isA(other, "WriteStream") then
-		--error("CLONE FROM WS")
 		self:init()
 	else
 		--ReadStream clone, this should delete the older one and take over it
-		--os.logf("READSTREAM", "Stream duplicated and closed")
 		local data = objects[self].data
 		local stream = data.readStreams[other]
 		stream.callback = nil
@@ -81,7 +64,6 @@ function ReadStream.__index:onClose(callback)
 		stream.onCloseCallback = callback
 	else
 		--already closed
-		os.logf("RS", "INVOKE CLOSE SPAWN LATE")
 		proc.createThread(callback, nil, nil, objects[self].owner)
 	end
 	
@@ -335,7 +317,6 @@ function WriteStream.__index:send(message)
 	kobject.checkType(self, WriteStream)
 	
 	kobject.checkMarshallable(1, message)
-	--if not kobject.isMarshallable(message) then return false, "not marshallable" end
 	
 	local data = objects[self].data
 	if data.readStreams then
@@ -349,20 +330,6 @@ function WriteStream.__index:send(message)
 		end
 	end
 end
-
---[[function WriteStream.__index:notify(val)
-	kobject.checkType(self, WriteStream)
-	
-	kobject.notify(self, val)
-end
-
-function WriteStream.__index:onNotification(val)
-	kobject.checkType(self, WriteStream)
-	
-	if val.type == "stream_connected" then
-		os.logf("WRITESTREAM", "%s connected", val.stream)
-	end
-end]]
 
 function kobject.newStream()
 	--creates a new kernel stream--

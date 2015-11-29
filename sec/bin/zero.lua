@@ -21,60 +21,8 @@ function zero.handleSignal(sig)
 end
 
 do
-	--zeroapi stuff
-	--TODO: Convert zeroapi over to a kexport
+	--ZeroAPI--
 	zeroapi = {}
-	
-	function zero.createNewAPIStream()
-		local readStream, to_writeStream = kobject.newStream()
-		
-		--api: {method = "name", arguments = {}, replyId = number, replyStream = WriteStream}
-		
-		readStream:listen(zero.handleRPC)
-		
-		return to_writeStream
-	end
-	
-	function zero.handleRPC(rpc, source)
-		if rpc.replyId and rpc.replyStream then
-			--os.logf("ZERO:RPC", "Method %s", rpc.method)
-			
-			local method = zeroapi[rpc.method]
-		
-			if not method then
-				zero.replyErrorRPC(rpc, "method not found")
-				return
-			end
-			
-			if type(rpc.arguments) ~= "table" then
-				zero.replyErrorRPC(rpc, "invalid argument data type")
-				return
-			end
-			
-			local t = table.pack(pcall(method, source, table.unpack(rpc.arguments)))
-			
-			if not t[1] then
-				zero.replyErrorRPC(rpc, t[2])
-				return
-			else
-				zero.replyRPC(rpc, table.pack(table.unpack(t, 2)))
-			end
-		end
-		--If we don't have a place to send an error, we can't send an error. AMIRITE?
-	end
-	
-	function zero.replyRPC(rpc, message)
-		message.ok = true
-		message.id = rpc.replyId
-		rpc.replyStream:send(message)
-	end
-	
-	function zero.replyErrorRPC(rpc, error)
-		local message = {ok = false, id = rpc.replyId, error = error}
-		rpc.replyStream:send(message)
-	end
-	
-	--The ACTUAL exported API starts here--
 	
 	function zeroapi.init()
 		return true
@@ -96,7 +44,6 @@ do
 	local localServices = {}
 	
 	function zeroapi.service_get(pid, name)
-		--os.logf("ZERO:API", "Get service %s for pid %s", name, tostring(pid))
 		if globalServices[name] then
 			return globalServices[name]
 		end
@@ -150,13 +97,19 @@ do
 		env = env or {}
 		
 		if not env.API then
-			env.API = zero.createNewAPIStream()
+			env.API = zero.apiClient
 		end
 		
-		local p, e = proc.spawn(source, name, args, env, trustLevel, pid)
-		if not p then os.logf("ZEROAPI", "%s", e) end
-		return p, e
+		return proc.spawn(source, name, args, env, trustLevel, pid)
 	end
+	
+	local functionList = {}
+	for i, v in pairs(zeroapi) do functionList[i] = true end
+	
+	zero.apiExport, zero.apiClient = kobject.newExport(functionList, function(method, arguments, pid)
+		return zeroapi[method](pid, table.unpack(arguments))
+	end)
+	kobject.setLabel(zero.apiExport, "ZeroAPI")
 end
 
 --start filesystem service--
@@ -176,7 +129,7 @@ else
 	end
 	bootfs.close(fh)
 	os.logf("ZERO", "%s ms", (os.clock()-a)*1000)
-	assert(proc.spawn(table.concat(buffer), "filesystem", nil, {API = zero.createNewAPIStream()}))
+	assert(proc.spawn(table.concat(buffer), "filesystem", nil, {API = zero.apiClient}))
 	
 	local fs = await(zeroapi.service_await(0, "FS"))
 	os.log("ZERO", "Loading startup processes")
@@ -186,7 +139,7 @@ else
 		local stream = await(fs:invoke("readAsStream", handle, math.huge))
 		stream:join():after(function(source)
 			os.logf("ZERO", "%s ms", (os.clock()-a)*1000)
-			assert(proc.spawn(source, "startup", nil, {API = zero.createNewAPIStream()}))
+			assert(proc.spawn(source, "startup", nil, {API = zero.apiClient}))
 			fs:invoke("close", handle)
 		end)
 	end)
@@ -208,4 +161,4 @@ assert(proc.spawn([[
 	local testsrv = await(service.get("TEST"))
 	--os.log("TEST", tostring(testsrv))
 	os.log("TEST", await(testsrv:invoke("func")))
-]], "zapi_test", nil, {API = zero.createNewAPIStream()}))
+]], "zapi_test", nil, {API = zero.apiClient}))

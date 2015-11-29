@@ -1,27 +1,11 @@
 function kapi.patches.zeroapi(env, pid, trustLevel)
 	if pid > 0 then
-		local api, replyStream, replyStreamOut
-		local replyId = 0
-		local apiCallbacks = {}
+		local api
 	
 		function env.initAPI()
 			api = proc.getEnv "API"
-			replyStream, replyStreamOut = kobject.newStream()
 			
-			replyStream:listen(function(rpc)
-				if rpc.id and apiCallbacks[rpc.id] then
-					apiCallbacks[rpc.id]:complete(rpc)
-					apiCallbacks[rpc.id] = nil
-				end
-			end)
-			
-			api:send({method = "init", arguments = {}, replyId = replyId, replyStream = replyStreamOut})
-			local completer, future = kobject.newFuture()
-			apiCallbacks[replyId] = completer
-			
-			replyId = replyId+1
-			
-			return future
+			return api:invoke("init")
 		end
 		
 		local function rpcCall(method)
@@ -29,16 +13,8 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 				if not api then
 					env.await(env.initAPI())
 				end
-			
-				api:send({method = method, arguments = table.pack(...), replyId = replyId, replyStream = replyStreamOut})
-				local completer, future = kobject.newFuture()
-				apiCallbacks[replyId] = completer
-			
-				replyId = replyId+1
-			
-				return future:after(function(rpc)
-					return table.unpack(rpc)
-				end)
+				
+				return api:invoke(method, ...)
 			end
 		end
 	
@@ -47,8 +23,7 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 				env.await(env.initAPI())
 			end
 			
-			api:send({method = "log", arguments = {...}, replyId = replyId, replyStream = replyStreamOut})
-			replyId = replyId+1
+			api:invoke("log", ...)
 		end
 		
 		function env.os.logf(tag, format, ...)

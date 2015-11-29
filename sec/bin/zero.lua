@@ -22,6 +22,7 @@ end
 
 do
 	--zeroapi stuff
+	--TODO: Convert zeroapi over to a kexport
 	zeroapi = {}
 	
 	function zero.createNewAPIStream()
@@ -141,6 +142,20 @@ do
 		end, "service_check_"..name.."_for_"..pid)
 		
 		return future
+	end
+	
+	--Process API--
+	
+	function zeroapi.proc_spawn(pid, source, name, args, env)
+		env = env or {}
+		
+		if not env.API then
+			env.API = zero.createNewAPIStream()
+		end
+		
+		local p, e = proc.spawn(source, name, args, env, trustLevel, pid)
+		if not p then os.logf("ZEROAPI", "%s", e) end
+		return p, e
 	end
 end
 

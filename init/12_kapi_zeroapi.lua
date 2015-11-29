@@ -57,52 +57,13 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 		
 		env.hello = rpcCall "hello"
 		
-		function env.service.get(name)
-			if not api then
-				env.await(env.initAPI())
-			end
-			
-			api:send({method = "service_get", arguments = {name}, replyId = replyId, replyStream = replyStreamOut})
-			local completer, future = kobject.newFuture()
-			apiCallbacks[replyId] = completer
-			
-			replyId = replyId+1
-			
-			return future:after(function(rpc)
-				return table.unpack(rpc)
-			end)
-		end
+		--service API
+		env.service.get = rpcCall "service_get"
+		env.service.registerLocal = rpcCall "service_registerlocal"
+		env.service.registerGlobal = rpcCall "service_registerglobal"
+		env.service.await = rpcCall "service_await"
 		
-		function env.service.registerLocal(name, ko)
-			if not api then
-				env.await(env.initAPI())
-			end
-			
-			api:send({method = "service_registerlocal", arguments = {name, ko}, replyId = replyId, replyStream = replyStreamOut})
-			local completer, future = kobject.newFuture()
-			apiCallbacks[replyId] = completer
-			
-			replyId = replyId+1
-			
-			return future:after(function(rpc)
-				return table.unpack(rpc)
-			end)
-		end
-		
-		function env.service.registerGlobal(name, ko)
-			if not api then
-				env.await(env.initAPI())
-			end
-			
-			api:send({method = "service_registerglobal", arguments = {name, ko}, replyId = replyId, replyStream = replyStreamOut})
-			local completer, future = kobject.newFuture()
-			apiCallbacks[replyId] = completer
-			
-			replyId = replyId+1
-			
-			return future:after(function(rpc)
-				return table.unpack(rpc)
-			end)
-		end
+		--process API extension: fills in environmental variable API if not defined
+		env.proc.spawn = rpcCall "proc_spawn"
 	end
 end

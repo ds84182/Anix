@@ -18,9 +18,9 @@
 	
 	--New Core (Or Current Core...):
 	--filesystem.lua process load: 0.159ms
-	--startup.lua loading handle open: 1.000ms
-	--startup.lua loading handle open+handle read stream+join: 2.443ms
-	--startup.lua loading startup list handle open+FS service get+zeroapi init: 2.479ms
+	--startup.lua loading handle open: 0.835ms
+	--startup.lua loading handle open+handle read stream+join: 2.107ms
+	--startup.lua loading startup list handle open+FS service get+zeroapi init: 1.706ms
 
 function kapi.patches.threading(env, pid, trustLevel)
 	--[[local threads = {}
@@ -39,6 +39,7 @@ function kapi.patches.threading(env, pid, trustLevel)
 	
 	env.await = proc.waitThread
 	env.yield = proc.suspendThread
+	env.sleep = proc.sleepThread
 	
 	--[=[function env.main(func, ...)
 		--This is the async loop for every process--

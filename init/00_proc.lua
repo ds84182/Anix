@@ -32,16 +32,18 @@ local function createThread(coro, pid, name, args)
 	return id
 end
 
-function proc.spawn(source, name, args, vars, trustLevel)
+function proc.spawn(source, name, args, vars, trustLevel, parent)
 	checkArg(1,source,"string")
 	checkArg(2,name,"string","nil")
 	checkArg(3,args,"table","nil")
 	checkArg(4,vars,"table","nil")
 	checkArg(5,trustLevel,"number","nil")
 	
-	trustLevel = trustLevel or proc.getTrustLevel()+1
+	parent = parent or (proc.getCurrentProcess() or -1)
 	
-	local currentTrustLevel = proc.getTrustLevel()
+	trustLevel = trustLevel or proc.getTrustLevel(parent)+1
+	
+	local currentTrustLevel = proc.getTrustLevel(parent)
 	if currentTrustLevel > 1000 and trustLevel < currentTrustLevel then
 		error(("Given trust level (%d) is less than the current trust level (%d)."):format(trustLevel, currentTrustLevel))
 	end
@@ -77,14 +79,14 @@ function proc.spawn(source, name, args, vars, trustLevel)
 		name = name,
 		trustLevel = trustLevel,
 		id = id,
-		parent = currentProcess or -1,
+		parent = parent,
 		variables = kobject.copy(vars, id), --environmental variables
 	}
 	processes[id] = object
 	
 	object.mainThread = createThread(coroutine.create(func), id, "main thread", kobject.copy(args or {}, id))
 	
-	os.logf("PROC", "Creating process \"%s\" with pid of %d, parent of %d, trust level %d", name, id, currentProcess or -1, trustLevel)
+	os.logf("PROC", "Creating process \"%s\" with pid of %d, parent of %d, trust level %d", name, id, parent, trustLevel)
 	return id
 end
 
@@ -104,6 +106,8 @@ end
 function proc.createKernelThread(func, name, args)
 	return createThread(coroutine.create(func), -1, name, args)
 end
+
+local _TIMEOUT = {nil, "timeout"}
 
 local function resume(thread, ...)
 	local oldThread = currentThread
@@ -128,20 +132,38 @@ local function resume(thread, ...)
 			--await
 			thread.waiting = true
 			thread.waitingOn = r[2]
+			thread.waitUntil = (type(r[3]) == "number") and computer.uptime()+r[3] or math.huge
+			thread.resumeOnTimeout = (type(r[4]) == "table") and r[4] or _TIMEOUT
 			r[2]:after(function(...)
 				thread.waiting = false
 				thread.waitingOn = nil
+				thread.waitUntil = nil
+				thread.resumeOnTimeout = nil
 				thread.resume = table.pack(...)
 				scheduleNext[#scheduleNext+1] = thread
 			end)
+		elseif type(r[2]) == "number" then
+			--sleep
+			thread.waiting = true
+			thread.waitUntil = computer.uptime()+r[2]
 		end
 	end
 end
 
 local function handleThread(id, thread)
+	if thread.waiting and thread.waitUntil then
+		if thread.waitUntil <= computer.uptime() then
+			thread.waiting = false
+			thread.waitUntil = nil
+			thread.resume = thread.resumeOnTimeout
+			thread.resumeOnTimeout = nil
+			thread.waitingOn = nil
+		end
+	end
+	
 	if (not thread.waiting) and (not thread.error) then
 		--os.logf("PROC", "Resume thread %s (%d)", thread.name, thread.id)
-		local a = os.clock()
+		--local a = os.clock()
 		if thread.firstResume then
 			resume(thread, table.unpack(thread.args))
 			thread.firstResume = false
@@ -263,8 +285,12 @@ function proc.suspendThread()
 	coroutine.yield()
 end
 
-function proc.waitThread(future)
-	return coroutine.yield(future)
+function proc.waitThread(future, timeout, onTimeout)
+	return coroutine.yield(future, timeout, onTimeout)
+end
+
+function proc.sleepThread(time)
+	coroutine.yield(time)
 end
 
 function proc.getCurrentProcess()

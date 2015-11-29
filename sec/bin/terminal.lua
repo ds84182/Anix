@@ -62,13 +62,12 @@ local function startTerminalHandlerThread(state)
 		
 		local cursorOn = false
 		local char
-	
-		state.stream:listen(function(event)
-			os.logf("HANDLER", event.type)
+		
+		local function processEvent(event)
 			if event.type == "set_blink" then
 				state.cursorBlink = event.blink
-				completer:complete()
-				completer, future = kobject.newFuture()
+				--[[completer:complete()
+				completer, future = kobject.newFuture()]]
 			elseif event.type == "move_cursor" then
 				if cursorOn then
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, char))
@@ -89,19 +88,28 @@ local function startTerminalHandlerThread(state)
 				state.cursorBlink = old
 				
 				state.cursorX = state.cursorX+#event.text
+				
+				char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
 			end
+		end
+	
+		state.stream:listen(function(event)
+			state.mutex:performAtomic(processEvent, event)
 		end)
 		
 		while true do
+			state.mutex:awaitLock()
 			if state.cursorBlink then
-				cursorOn = not cursorOn
-				if cursorOn then
+				if not cursorOn then
 					char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, "_"))
+					cursorOn = true
 				else
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, char))
+					cursorOn = false
 				end
 				
+				state.mutex:unlock()
 				await(future, 0.5)
 			else
 				if cursorOn then
@@ -109,6 +117,7 @@ local function startTerminalHandlerThread(state)
 					cursorOn = false
 				end
 				
+				state.mutex:unlock()
 				await(future)
 			end
 		end
@@ -146,7 +155,8 @@ function term.add(pid, name, object)
 	local rs, ws = kobject.newStream()
 	terminalState[handle:getId()] = {
 		cursorX = 1, cursorY = 1, cursorBlink = true,
-		gpu = object, handle = handle, name = name, stream = rs, events = ws
+		gpu = object, handle = handle, name = name, stream = rs, events = ws,
+		mutex = kobject.newMutex()
 	}
 	terminalState[handle:getId()].thread = startTerminalHandlerThread(terminalState[handle:getId()])
 	
@@ -179,7 +189,6 @@ local gpu = component.list("gpu", true)()
 
 if gpu then
 	local handle = term.add(proc.getCurrentProcess(), "main", gpu)
-	os.logf("TERM", "Handle %s", handle)
 	term.write(proc.getCurrentProcess(), handle, "Terminal is working!")
 end
 

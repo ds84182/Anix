@@ -1,0 +1,3 @@
+# list of files to run on startup
+# a line beginning with # denotes a comment
+/sec/bin/terminal.lua

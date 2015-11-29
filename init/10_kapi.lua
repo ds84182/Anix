@@ -6,6 +6,7 @@ local apienv = {
 		newFuture = kobject.newFuture,
 		newExport = kobject.newExport,
 		newHandle = kobject.newHandle,
+		newMutex = kobject.newMutex,
 		delete = kobject.delete,
 		setLabel = kobject.setLabel,
 		getLabel = kobject.getLabel,

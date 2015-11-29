@@ -4,10 +4,11 @@ local function execute(path)
 	local handle, err = await(fs.open(path, "r"))
 	if handle then
 		local source = await(await(fs.readAsStream(handle, math.huge)):join())
-		os.logf("EXECUTE", "%d", #source)
 		local pid, err = await(proc.spawn(source, path:match("/?([^/]+)$"):gsub("%.lua$", ""), nil, {}))
 		
-		if not pid then os.logf("EXECUTE", "%s", err) end
+		if not pid then
+			os.logf("EXECUTE", "Error while starting %s: %s", path, err)
+		end
 	end
 end
 

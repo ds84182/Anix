@@ -109,6 +109,8 @@ do
 		return proc.spawn(source, name, args, env, trustLevel, pid)
 	end
 	
+	--Export--
+	
 	local functionList = {}
 	for i, v in pairs(zeroapi) do functionList[i] = true end
 	

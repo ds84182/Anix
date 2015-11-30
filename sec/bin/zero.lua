@@ -50,19 +50,20 @@ do
 	local localServices = {}
 	
 	function zeroapi.service_get(pid, name)
-		if globalServices[name] then
-			return globalServices[name]
-		end
-		
-		if pid == -1 then return end
-		
 		local ls = localServices[pid]
 		if ls and ls[name] then
 			return ls[name]
 		end
 		
-		--service get through parent local services--
-		return zeroapi.service_get(proc.getParentProcess(pid), name)
+		if pid >= 0 then
+			--service get through parent local services--
+			local service = zeroapi.service_get(proc.getParentProcess(pid), name)
+			if service then return service end
+		end
+		
+		if globalServices[name] then
+			return globalServices[name]
+		end
 	end
 	
 	function zeroapi.service_registerlocal(pid, name, ko)

@@ -22,20 +22,30 @@ function Future.__index:init()
 	--always overwrite previous future
 	data.future = {
 		object = self,
-		callback = nil
+		callback = nil,
+		errorHandler = nil
 	}
 end
 
-function Future.__index:after(callback)
+function Future.__index:after(callback, errorHandler)
 	kobject.checkType(self, Future)
+	checkArg(1, callback, "function")
+	checkArg(2, errorHandler, "function", "nil")
 	
 	local data = objects[self].data
 	
 	if data.future.object == self then
 		local completer, future = kobject.newFuture()
 		data.future.callback = function(...)
-			completer:complete(callback(...))
+			local t = table.pack(xpcall(callback, debug.traceback, ...))
+			
+			if t[1] then
+				completer:complete(table.unpack(t, 2))
+			else
+				completer:error(t[2])
+			end
 		end
+		data.future.errorHandler = errorHandler
 	
 		return future
 	else
@@ -54,10 +64,20 @@ function Future.__index:onNotification(d)
 	
 	local data = objects[self].data
 	if data.future and data.future.object == self then
-		if data.future.callback then
-			proc.resumeThread(
-			proc.createThread(data.future.callback, nil, d, objects[self].owner)
-			)
+		if d.type == "message" then
+			if data.future.callback then
+				proc.resumeThread(
+				proc.createThread(data.future.callback, nil, d, objects[self].owner)
+				)
+			end
+		elseif d.type == "error" then
+			if data.future.errorHandler then
+				proc.resumeThread(
+				proc.createThread(data.future.errorHandler, nil, d, objects[self].owner)
+				)
+			else
+				os.logf("KFUTURE", "Error in %s: %s", self, d[1])
+			end
 		end
 		
 		--os.logf("KFUTURE", "%s completed %d", self, objects[self].owner)
@@ -78,10 +98,26 @@ function Completer.__index:complete(...)
 	for i=1, message.n do
 		kobject.checkMarshallable(i, message[i])
 	end
+	message.type = "message"
 	
 	local data = objects[self].data
 	if data.future then
 		data.future.object:notify(message)
+		kobject.delete(self)
+		return true
+	end
+	
+	object.delete(self)
+	
+	return false, "endpoint not connected"
+end
+
+function Completer.__index:error(message)
+	kobject.checkType(self, Completer)
+	
+	local data = objects[self].data
+	if data.future then
+		data.future.object:notify({type = "error", message})
 		kobject.delete(self)
 		return true
 	end

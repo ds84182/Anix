@@ -107,7 +107,7 @@ function proc.createKernelThread(func, name, args)
 	return createThread(coroutine.create(func), -1, name, args)
 end
 
-local _TIMEOUT = {nil, "timeout"}
+local _TIMEOUT = {true, nil, "timeout"}
 
 local function resume(thread, ...)
 	local oldThread = currentThread
@@ -121,7 +121,7 @@ local function resume(thread, ...)
 		thread.error = s and "process has finished execution" or debug.traceback(thread.thread, r[2])
 		
 		if not thread.peaceful then
-			os.logf("PROC", "Process \"%s\" Thread \"%s\" (%d) has ended %s (%s)", processes[thread.process].name, thread.name, thread.id, thread.peaceful and "peacefully" or "violently", thread.error)
+			os.logf("PROC", "Process \"%s\" (%d) Thread \"%s\" (%d) has ended %s: %s", processes[thread.process].name, thread.process, thread.name, thread.id, thread.peaceful and "peacefully" or "violently", thread.error)
 		end
 		
 		return
@@ -139,7 +139,14 @@ local function resume(thread, ...)
 				thread.waitingOn = nil
 				thread.waitUntil = nil
 				thread.resumeOnTimeout = nil
-				thread.resume = table.pack(...)
+				thread.resume = table.pack(true, ...)
+				scheduleNext[#scheduleNext+1] = thread
+			end, function(err)
+				thread.waiting = false
+				thread.waitingOn = nil
+				thread.waitUntil = nil
+				thread.resumeOnTimeout = nil
+				thread.resume = table.pack(false, err)
 				scheduleNext[#scheduleNext+1] = thread
 			end)
 		elseif type(r[2]) == "number" then
@@ -268,7 +275,13 @@ function proc.suspendThread()
 end
 
 function proc.waitThread(future, timeout, onTimeout)
-	return coroutine.yield(future, timeout, onTimeout)
+	local t = table.pack(coroutine.yield(future, timeout, onTimeout))
+	
+	if not t[1] then
+		error(t[2], 2)
+	end
+	
+	return table.unpack(t, 2)
 end
 
 function proc.sleepThread(time)

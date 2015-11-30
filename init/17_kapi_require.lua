@@ -37,21 +37,24 @@ function kapi.patches.require(env, pid, trustLevel)
 				end)
 			end
 			
-			return env.await(future:after(function(path)
+			local pkg --total HAXX to get a function through
+			
+			env.await(future:after(function(path)
 				if path then
 					os.logf("PACKAGE", "Found package at %s", path)
-					local handle = env.await(fs.open(path, "r"))
+					local handle = env.await(env.fs.open(path, "r"))
 					env.await(env.fs.readAsStream(handle, math.huge)):join():after(function(src)
-						local f, e = load(src, "="..name)
+						local f, e = load(src, "="..name, nil, proc.getGlobals())
 						if not f then error(e) end
-						local pkg = f(path) or true
+						pkg = f(path) or true
 						env.package.loaded[name] = pkg
-						return pkg
 					end)
 				else
 					error("Package not found!")
 				end
 			end))
+			
+			return pkg
 		end
 	end
 end

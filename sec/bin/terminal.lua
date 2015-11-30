@@ -468,7 +468,7 @@ if gpu then
 		os.logf("TERM", "Line %s", line)
 	end)]]
 	
-	require "test.file"
+	require "foo".bar()
 end
 
 --Service Exporting:

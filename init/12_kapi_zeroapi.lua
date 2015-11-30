@@ -31,6 +31,7 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 		end
 		
 		env.hello = rpcCall "hello"
+		env.getSignalStream = rpcCall "signalstream"
 		
 		--service API
 		env.service.get = rpcCall "service_get"

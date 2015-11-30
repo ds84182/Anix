@@ -335,6 +335,11 @@ function proc.listEnv(env, pid)
 	return env
 end
 
+function proc.getGlobals(pid)
+	pid = pid or proc.getCurrentProcess()
+	return processes[pid].globals
+end
+
 --[=[function ps.getInfo(id,info)
 	checkArg(1,id,"number")
 	checkArg(2,info,"table","nil")

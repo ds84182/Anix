@@ -49,5 +49,13 @@ function kapi.patches.fsapi(env, pid, trustLevel)
 			
 			return fs:invoke("close", handle)
 		end
+		
+		function env.fs.exists(path)
+			if not fs then
+				env.await(env.fs.init())
+			end
+			
+			return fs:invoke("exists", path)
+		end
 	end
 end

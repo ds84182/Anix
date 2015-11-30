@@ -236,6 +236,14 @@ function fs.close(pid, handle)
 	return true
 end
 
+function fs.exists(pid, path)
+	checkArg(1, path, "string")
+	
+	local mount, subpath = getMountAndPath(path)
+	
+	return await(mount:invoke("exists", subpath))
+end
+
 --Init:
 
 fs.mount(proc.getCurrentProcess(), "/", computer.getBootAddress())

@@ -421,6 +421,8 @@ function term.read(pid, handle, signalStream, history, tabResolver, pwchar)
 	
 	redraw()
 	
+	local completer, future = kobject.newFuture()
+	
 	signalStream:listen(function(signal)
 		local typ = table.remove(signal, 1)
 		
@@ -438,9 +440,14 @@ function term.read(pid, handle, signalStream, history, tabResolver, pwchar)
 				cursor = cursor+1
 				checkCursor()
 				redraw()
+			elseif signal[3] == 0x1C then
+				completer:complete(line)
+				signalStream:close()
 			end
 		end
 	end)
+	
+	return future
 end
 
 --Init:
@@ -455,7 +462,9 @@ if gpu then
 	end)
 	local width = await(term.getSize(proc.getCurrentProcess(), handle))
 	term.setCursor(proc.getCurrentProcess(), handle, 1, 2)--width-5, 2)
-	term.read(proc.getCurrentProcess(), handle, await(getSignalStream()))
+	term.read(proc.getCurrentProcess(), handle, await(getSignalStream())):after(function(line)
+		os.logf("TERM", "Line %s", line)
+	end)
 end
 
 --Service Exporting:

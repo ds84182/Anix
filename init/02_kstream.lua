@@ -23,10 +23,10 @@ function ReadStream.__index:init()
 	}
 end
 
-function ReadStream.__index:initClone(other)
+function ReadStream.__index:initClone(other, init)
 	kobject.checkType(self, ReadStream)
 	
-	if kobject.isA(other, "WriteStream") then
+	if init or kobject.isA(other, "WriteStream") then
 		self:init()
 	else
 		--ReadStream clone, this should delete the older one and take over it
@@ -38,6 +38,12 @@ function ReadStream.__index:initClone(other)
 		data.readStreams[other] = nil
 		kobject.delete(other)
 	end
+end
+
+function ReadStream.__index:duplicate()
+	kobject.checkType(self, ReadStream)
+	
+	return kobject.clone(self, ReadStream, true)
 end
 
 function ReadStream.__index:listen(callback)

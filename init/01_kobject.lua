@@ -168,7 +168,7 @@ local function checkObject(argn, obj)
 	end
 end
 
-function kobject.clone(other, metatable)
+function kobject.clone(other, metatable, ...)
 	checkObject(1, other)
 	
 	--links the same data to a new kobject
@@ -179,9 +179,9 @@ function kobject.clone(other, metatable)
 	dataToInstances[objects[other].data][o] = true
 	
 	if o.initClone then
-		o:initClone(other)
+		o:initClone(other, ...)
 	elseif o.init then
-		o:init()
+		o:init(...)
 	end
 	
 	return o

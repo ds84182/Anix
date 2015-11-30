@@ -241,13 +241,12 @@ function proc.run(callback)
 				handleThread(scheduleNext[i].id, scheduleNext[i])
 			end
 			scheduleNext = {}]]
-		
-			--callback()
 	
 			--very end...--
 			--test to see if any processes have pending signals--
 			pps = false
 			for id, thread in pairs(threads) do
+				minWait = math.min(minWait, (thread.waitUntil or math.huge)-computer.uptime())
 				if thread.error == nil and not thread.waiting then
 					pps = true
 					break
@@ -260,24 +259,7 @@ function proc.run(callback)
 			end
 		end
 		
-		--TODO: OK, so this needs to be broken. The kernel process will have access to the signal queue, and is responsible for
-			--sending signals to processes that ask for signals (with a signal filter ofc)
-		computer.pullSignal(0)
-		--[[local signal = table.pack(computer.pullSignal(pps and 0 or minWait))
-		os.log("PS", "Yield")
-		--if signal[1] then error(signal[1]) end
-		for i, v in pairs(processes) do
-			--signalQueue proccessing
-			if signal[1] and v.trustLevel == 0 then
-				signal.type = "oc_signal"
-				if matchesResumeFilter(v,signal) then
-					table.insert(v.signalQueue,1,signal)
-					v.wait = 0
-				else
-					v.signalQueue[#v.signalQueue+1] = signal
-				end
-			end
-		end]]
+		callback(pps, minWait)
 	end
 end
 

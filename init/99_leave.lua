@@ -36,7 +36,9 @@ function LeaveINIT()
 		buffer[#buffer+1] = s
 	end
 	bootfs.close(fh)
-	assert(proc.spawn(table.concat(buffer), "zero"))
+	
+	local signalStream, signalStreamWrite = kobject.newStream()
+	assert(proc.spawn(table.concat(buffer), "zero", {signalStream}))
 	
 	--[=[local export, exportClient = kobject.newExport({func = true}, function(method)
 		return method.."!"
@@ -69,8 +71,10 @@ function LeaveINIT()
 		ws:send(await(exportClient:invoke("func")))
 	]], "zero", {exportClient})]=]
 	
-	proc.run(function()
-		--kobject.update()
-		computer.pullSignal(0)
+	proc.run(function(pps, minWait)
+		local signal = table.pack(computer.pullSignal(pps and 0 or minWait))
+		if signal[1] then
+			signalStreamWrite:send(signal)
+		end
 	end)
 end

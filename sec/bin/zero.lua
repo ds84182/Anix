@@ -8,9 +8,9 @@
 
 zero = {}
 
+local kernelSignalStream = ...
+
 local signalStream, signalStreamOut = kobject.newStream()
-kobject.delete(signalStream)
-signalStream = nil
 
 function zero.handleSignal(sig)
 	os.logf("ZERO", "Handle signal %s", sig[1])
@@ -19,6 +19,8 @@ function zero.handleSignal(sig)
 	
 	signalStreamOut:send(sig)
 end
+
+kernelSignalStream:listen(zero.handleSignal)
 
 do
 	--ZeroAPI--
@@ -36,6 +38,10 @@ do
 	function zeroapi.log(pid, tag, ...)
 		tag = tostring(tag).."/"..pid.."/"..proc.getProcessName(pid)
 		os.log(tag, ...)
+	end
+	
+	function zeroapi.signalstream(pid)
+		return signalStream:duplicate()
 	end
 	
 	--Service API--

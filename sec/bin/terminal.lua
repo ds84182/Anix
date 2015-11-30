@@ -293,10 +293,11 @@ function term.copy(pid, handle, x, y, width, height, destx, desty)
 	end
 end
 
-function term.read(pid, handle, signalStream, history, tabResolver, pwchar)
+function term.read(pid, handle, signalStream, line, history, tabResolver, pwchar)
 	kobject.checkType(handle, "Handle")
 	kobject.checkType(signalStream, "ReadStream")
-	checkArg(2, history, "table", "nil")
+	checkArg(2, line, "string", "nil")
+	checkArg(3, history, "table", "nil")
 	if tabResolver then kobject.checkType(tabResolver, "Export") end
 	checkArg(4, pwchar, "string", "nil")
 	
@@ -307,12 +308,12 @@ function term.read(pid, handle, signalStream, history, tabResolver, pwchar)
 		return nil
 	end
 	
-	local line = "so, this is kinda long. really, this is long. i'm telling you, this is... long.! if you don't... beleive me..."
+	line = line or ""
 	local cursor = #line
 	local baseCursorX, baseCursorY = await(term.getCursor(pid, handle))
 	local width, height = await(term.getSize(pid, handle))
 	local lineWidth = width-baseCursorX+1
-	local scroll = #line-lineWidth+2
+	local scroll = math.max(#line-lineWidth+1, 0)
 	
 	local function redraw()
 		term.put(pid, handle, baseCursorX, baseCursorY, (" "):rep(lineWidth)) --writes, but does not do wrapping or cursor setting
@@ -456,7 +457,8 @@ local gpu = component.list("gpu", true)()
 
 if gpu then
 	local handle = term.add(proc.getCurrentProcess(), "main", gpu)
-	term.write(proc.getCurrentProcess(), handle, "Terminal is working!")
+	
+	--[[term.write(proc.getCurrentProcess(), handle, "Terminal is working!")
 	term.getCursor(proc.getCurrentProcess(), handle):after(function(x, y)
 		os.logf("TERM", "Tp %d %d", x, y)
 	end)
@@ -464,7 +466,9 @@ if gpu then
 	term.setCursor(proc.getCurrentProcess(), handle, 1, 2)--width-5, 2)
 	term.read(proc.getCurrentProcess(), handle, await(getSignalStream())):after(function(line)
 		os.logf("TERM", "Line %s", line)
-	end)
+	end)]]
+	
+	require "test.file"
 end
 
 --Service Exporting:

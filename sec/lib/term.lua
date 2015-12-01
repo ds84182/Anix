@@ -19,7 +19,7 @@ function term.init()
 		srv = await(await(service.await "TERM"))
 	end
 	
-	term.switch "main"
+	term.switch(proc.getEnv "TERM" or "main")
 end
 
 function term.get(name)

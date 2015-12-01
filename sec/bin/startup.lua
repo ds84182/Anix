@@ -9,6 +9,8 @@ local function execute(path)
 		if not pid then
 			os.logf("EXECUTE", "Error while starting %s: %s", path, err)
 		end
+	else
+		os.logf("EXECUTE", "Error while starting %s: %s", path, err)
 	end
 end
 
@@ -21,7 +23,7 @@ fs.open("/sec/etc/startup", "r"):after(function(handle)
 			:transform(utils.newLineSplitter())
 			:where(function(line) return line:sub(1,1) ~= "#" and #line > 0 end)
 			:listen(function(line)
-				os.logf("MAIN", "Read line %s", line)
+				os.logf("MAIN", "Starting %s", line)
 				execute(line)
 			end)
 	end

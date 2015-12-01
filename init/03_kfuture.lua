@@ -128,7 +128,7 @@ function Completer.__index:error(message)
 end
 
 function kobject.newFuture()
-	--creates a new kernel stream--
+	--creates a new kernel future--
 	--this returns two objects: a completer and a future
 	
 	--os.logf("KFUTURE", "New future %s", debug.traceback())
@@ -140,4 +140,51 @@ function kobject.newFuture()
 	kobject.own(f)
 	
 	return c, f
+end
+
+--Completed Future--
+
+local CompletedFuture = kobject.mt {
+	__index = {},
+	__type = "CompletedFuture",
+	__extend = Future
+}
+
+function CompletedFuture.__index:init(...)
+	kobject.checkType(self, CompletedFuture)
+	
+	local data = objects[self].data
+	if not data.value then
+		data.value = table.pack(...)
+	end
+end
+
+function CompletedFuture.__index:after(callback)
+	kobject.checkType(self, CompletedFuture)
+	
+	local data = objects[self].data
+	
+	local completer, future = kobject.newFuture()
+	
+	proc.createThread(function(...)
+		local t = table.pack(xpcall(callback, debug.traceback, ...))
+		
+		if t[1] then
+			completer:complete(table.unpack(t, 2))
+		else
+			completer:error(t[2])
+		end
+	end, nil, data.value, objects[self].owner)
+	
+	return future
+end
+
+function kobject.newCompletedFuture(...)
+	--creates a new kernel completed future--
+	
+	local c = kobject.new(CompletedFuture, ...)
+	
+	kobject.own(c)
+	
+	return c
 end

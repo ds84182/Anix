@@ -216,7 +216,9 @@ local function handleThread(id, thread)
 		local sn = scheduleNext
 		scheduleNext = {}
 		for i=1, #sn do
-			handleThread(sn[i].id, sn[i])
+			if sn[i] ~= thread then
+				handleThread(sn[i].id, sn[i])
+			end
 		end
 	end
 end

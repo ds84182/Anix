@@ -11,6 +11,7 @@ zero = {}
 local kernelSignalStream = ...
 
 local signalStream, signalStreamOut = kobject.newStream()
+kobject.setLabel(signalStream, "Signal Stream")
 
 function zero.handleSignal(sig)
 	os.logf("ZERO", "Handle signal %s", sig[1])

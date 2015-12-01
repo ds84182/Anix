@@ -192,6 +192,7 @@ function fs.readAsStream(pid, handle, blockSize)
 	
 	local handleRef = fileHandles[handle:getId()]
 	local readStream, writeStream = kobject.newStream()
+	kobject.setLabel(readStream, "Read Stream for "..handleRef.path)
 	
 	proc.createThread(function()
 		while true do

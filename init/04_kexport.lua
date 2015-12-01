@@ -64,7 +64,8 @@ end
 local Export = kobject.mt {
 	__index = {
 		--async = true,
-		notMarshallable = true
+		notMarshallable = true,
+		threadSpawning = true
 	},
 	__type = "Export"
 }
@@ -81,6 +82,10 @@ function Export.__index:init(methods, handler)
 		data.export = self
 		data.disconnected = false
 	end
+end
+
+function Export.__index:close()
+	kobject.delete(self)
 end
 
 function Export.__index:delete()

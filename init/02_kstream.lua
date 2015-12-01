@@ -4,6 +4,8 @@ local objects = kobject.objects
 local ReadStream = kobject.mt {
 	__index = {
 		--async = true, --Async objects need update() to be called every now and then
+		threadSpawning = true,
+		closeable = true
 	},
 	__type = "ReadStream"
 }
@@ -74,6 +76,12 @@ function ReadStream.__index:onClose(callback)
 	end
 	
 	return self
+end
+
+function ReadStream.__index:isClosed()
+	kobject.checkType(self, ReadStream)
+	local data = objects[self].data
+	return data.readStreams[self] == nil
 end
 
 function ReadStream.__index:close()

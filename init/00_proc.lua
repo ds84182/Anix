@@ -252,14 +252,15 @@ function proc.run(callback)
 				handleThread(id, thread)
 			end
 			
-			--os.logf("PROC", "%d new threads this loop", #scheduleNext)
-			--[[for i=1, #scheduleNext do
-				handleThread(scheduleNext[i].id, scheduleNext[i])
+			--delete ended threads--
+			for id, thread in pairs(threads) do
+				if thread.error then
+					threads[id] = nil
+				end
 			end
-			scheduleNext = {}]]
-	
+			
 			--very end...--
-			--test to see if any processes have pending signals--
+			--test to see if any threads have pending signals--
 			pps = false
 			for id, thread in pairs(threads) do
 				minWait = math.min(minWait, (thread.waitUntil or math.huge)-computer.uptime())
@@ -272,6 +273,13 @@ function proc.run(callback)
 			
 			if not pps then
 				break
+			end
+		end
+		
+		--check and end processes--
+		for id, process in pairs(processes) do
+			if proc.canEnd(id) then
+				os.logf("PROC", "Can end process %d", id)
 			end
 		end
 		
@@ -347,6 +355,28 @@ end
 function proc.getGlobals(pid)
 	pid = pid or proc.getCurrentProcess()
 	return processes[pid].globals
+end
+
+function proc.canEnd(pid)
+	if processes[pid] then
+		for id, thread in pairs(threads) do
+			if thread.process == pid then
+				os.logf("PROC", "Thread belonging to %d: %s", pid, thread.name)
+				return false
+			end
+		end
+		
+		--check if we have any thread spawning kernel objects--
+		--threadSpawning = true
+		for object, o in pairs(kobject.objects) do
+			if o.owner == pid and object.threadSpawning and ((not object.closeable) and true or (not object:isClosed())) then
+				os.logf("PROC", "Process %d owns thread spawning object %s", pid, object)
+				return false
+			end
+		end
+		
+		return true
+	end
 end
 
 --[=[function ps.getInfo(id,info)

@@ -5,7 +5,7 @@ local objects = kobject.objects
 --They are kinda implemented like Streams, but they don't broadcast--
 
 local Future = kobject.mt {
-	__index = {},
+	__index = {threadSpawning = true},
 	__type = "Future"
 }
 

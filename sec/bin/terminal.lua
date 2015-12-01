@@ -62,6 +62,8 @@ local function startTerminalHandlerThread(state)
 		
 		local cursorOn = false
 		local char
+		local exit = false
+		local onExit
 		
 		local function processEvent(event)
 			if event.type == "set_blink" then
@@ -114,6 +116,9 @@ local function startTerminalHandlerThread(state)
 				state.cursorBlink = old
 				
 				char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
+			elseif event.type == "exit" then
+				exit = true --exit the blinking thread
+				onExit = event.onExit
 			end
 		end
 	
@@ -125,8 +130,14 @@ local function startTerminalHandlerThread(state)
 			end
 		end)
 		
-		while true do
+		while not exit do
 			state.mutex:awaitLock()
+			
+			if exit then
+				state.mutex:unlock()
+				break
+			end
+			
 			if state.cursorBlink then
 				if not cursorOn then
 					char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
@@ -148,6 +159,14 @@ local function startTerminalHandlerThread(state)
 				state.mutex:unlock()
 				await(future)
 			end
+		end
+		
+		state.stream:close()
+		state.events:close()
+		kobject.delete(state.mutex)
+		
+		if onExit then
+			onExit:complete()
 		end
 	end, "terminal_handler_"..state.name)
 end
@@ -192,7 +211,33 @@ function term.add(pid, name, object)
 end
 
 function term.remove(pid, handle)
+	kobject.checkType(handle, "Handle")
 	
+	local state = terminalState[handle:getId()]
+	
+	if state then
+		local completer, future = kobject.newFuture()
+		
+		state.events:send({type = "exit", onExit = completer})
+		
+		await(future)
+		
+		handles[state.name] = nil
+		
+		for i, v in pairs(boundComponentList) do
+			if v == state.object then
+				boundComponentList[i] = nil
+				break
+			end
+		end
+		boundList[state.object] = nil
+		
+		terminalState[handle:getId()] = nil
+		
+		return true
+	end
+	
+	return false
 end
 
 function term.get(pid, name)
@@ -209,6 +254,8 @@ function term.setCursor(pid, handle, x, y)
 	
 	if state then
 		state.events:send({type = "move_cursor", x = x, y = y})
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -223,6 +270,8 @@ function term.getCursor(pid, handle)
 		return future:after(function()
 			return state.cursorX, state.cursorY
 		end)
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -234,6 +283,8 @@ function term.setCursorBlink(pid, handle, blink)
 	
 	if state then
 		state.events:send({type = "set_blink", blink = blink})
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -248,6 +299,8 @@ function term.getCursorBlink(pid, handle)
 		return future:after(function()
 			return state.cursorBlink
 		end)
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -258,6 +311,8 @@ function term.getSize(pid, handle)
 	
 	if state then
 		return state.gpu:invoke("getResolution")
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -269,6 +324,8 @@ function term.write(pid, handle, str)
 	
 	if state then
 		state.events:send({type = "write", text = str})
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -280,6 +337,8 @@ function term.put(pid, handle, x, y, str)
 	
 	if state then
 		state.events:send({type = "put", x = x, y = y, text = str})
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -290,6 +349,8 @@ function term.copy(pid, handle, x, y, width, height, destx, desty)
 	
 	if state then
 		state.events:send({type = "copy", x = x, y = y, width = width, height = height, destx = destx, desty = desty})
+	else
+		error("invalid terminal handle")
 	end
 end
 
@@ -305,7 +366,7 @@ function term.read(pid, handle, signalStream, line, history, tabResolver, pwchar
 	local state = terminalState[handle:getId()]
 	
 	if not state then
-		return nil
+		error("invalid terminal handle")
 	end
 	
 	line = line or ""

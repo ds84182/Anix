@@ -50,7 +50,7 @@ function Mutex.__index:lock()
 		return future
 	else
 		data.locked = true
-		--TODO: Subclasses, kobject.newCompletedFuture()
+		return kobject.newCompletedFuture()
 	end
 end
 

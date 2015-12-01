@@ -146,6 +146,22 @@ function kobject.mt(m)
 		end
 	end
 	
+	m.__superclasses = {}
+	if m.__extend then
+		local current = m.__extend
+		while current do
+			m.__superclasses[current] = true
+			m.__superclasses[current.__type] = true
+			current = current.__extend
+		end
+		
+		for i, v in pairs(m.__extend.__index) do
+			if not m.__index[i] then
+				m.__index[i] = v
+			end
+		end
+	end
+	
 	return m
 end
 
@@ -273,9 +289,9 @@ function kobject.isA(obj, mt)
 	if not o then return false end
 	
 	if type(mt) == "string" then
-		return mt == o.metatable.__type
+		return mt == o.metatable.__type or o.metatable.__superclasses[mt]
 	elseif type(mt) == "table" and getmetatable(mt) == nil then
-		return mt == o.metatable
+		return mt == o.metatable or o.metatable.__superclasses[mt]
 	end
 end
 
@@ -284,7 +300,7 @@ function kobject.checkType(obj, mt)
 		if objects[obj] then
 			error(("attempt to use %s as a %s"):format(objects[obj].metatable.__type, type(mt) == "table" and mt.__type or mt), 2)
 		else
-			error("attempt to use deleted object", 2)
+			error("not a valid kernel object", 2)
 		end
 	end
 end

@@ -6,8 +6,6 @@ function kapi.patches.require(env, pid, trustLevel)
 		}
 		
 		env.require = function(name)
-			--HERE IS ANOTHER INSTANCE WHERE kobject.newValueFuture would need to be used. GOD DAMMIT
-			
 			local pathname = name:gsub("%.", "/")
 			
 			local completer, future = kobject.newFuture()

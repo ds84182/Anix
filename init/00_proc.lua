@@ -146,13 +146,20 @@ local function resume(thread, ...)
 				thread.waitingOn = nil
 				thread.waitUntil = nil
 				thread.resumeOnTimeout = nil
-				thread.resume = table.pack(false, err)
+				thread.resume = {false, err}
 				scheduleNext[#scheduleNext+1] = thread
 			end)
 		elseif type(r[2]) == "number" then
 			--sleep
 			thread.waiting = true
 			thread.waitUntil = computer.uptime()+r[2]
+		else
+			thread.waiting = false
+			thread.waitingOn = nil
+			thread.waitUntil = nil
+			thread.resumeOnTimeout = nil
+			thread.resume = {false, "invalid thread yield value"}
+			scheduleNext[#scheduleNext+1] = thread
 		end
 	end
 end

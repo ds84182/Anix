@@ -279,7 +279,14 @@ function proc.run(callback)
 		--check and end processes--
 		for id, process in pairs(processes) do
 			if proc.canEnd(id) then
-				os.logf("PROC", "Can end process %d", id)
+				os.logf("PROC", "Can end process %s (%d)", process.name, id)
+				kobject.deleteProcessObjects(id)
+				if proc.canEnd(id) then --some of the delete methods create new threads for their owner process
+					proc.reparentChildren(id)
+					processes[id] = nil
+				else
+					os.logf("PROC", "Process %d spawned new threads or objects in object deletion", id)
+				end
 			end
 		end
 		
@@ -376,6 +383,14 @@ function proc.canEnd(pid)
 		end
 		
 		return true
+	end
+end
+
+function proc.reparentChildren(ppid)
+	for id, process in pairs(processes) do
+		if process.parent == ppid then
+			process.parent = 0
+		end
 	end
 end
 

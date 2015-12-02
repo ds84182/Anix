@@ -264,6 +264,14 @@ function kobject.delete(obj)
 	objects[obj] = nil
 end
 
+function kobject.deleteProcessObjects(pid)
+	for object, od in pairs(objects) do
+		if od.owner == pid then
+			kobject.delete(object)
+		end
+	end
+end
+
 function kobject.copyFor(obj, v)
 	checkObject(1, obj)
 	return copy(v, objects[obj].owner)

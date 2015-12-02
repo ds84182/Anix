@@ -270,6 +270,17 @@ fs.open(ps.getCurrentProcess(), "/sec/etc/startup", "r"):after(function(handle)
 	end)]]
 end)]=]
 
+proc.createThread(function()
+	while true do
+		sleep(60)
+		for handle in pairs(kHandleReferences) do
+			if not handle:hasOthers() then
+				fs.close(proc.getCurrentProcess(), handle)
+			end
+		end
+	end
+end, "filesystem_handle_closer")
+
 --Service Exporting:
 
 local functionList = {}

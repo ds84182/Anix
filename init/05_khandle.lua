@@ -104,6 +104,20 @@ function Handle.__index:getId()
 	return data.numid
 end
 
+function Handle.__index:hasOthers() --returns true if other instances of this Handle are alive in other processes
+	kobject.checkType(self, Handle)
+	
+	local has = false
+	for other in pairs(kobject.instancesOf(self)) do
+		if other ~= self and kobject.isA(other, Handle) then
+			has = true
+			break
+		end
+	end
+	
+	return has
+end
+
 function kobject.newHandle()
 	local num = random_int32()
 	gen = gen+1

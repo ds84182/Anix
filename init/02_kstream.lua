@@ -316,7 +316,7 @@ function WriteStream.__index:delete()
 	
 	local hasWriteStream = false
 	for other in pairs(kobject.instancesOf(self)) do
-		if kobject.isA(other, WriteStream) then
+		if other ~= self and kobject.isA(other, WriteStream) then
 			hasWriteStream = true
 			break
 		end

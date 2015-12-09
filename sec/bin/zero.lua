@@ -13,10 +13,17 @@ local kernelSignalStream = ...
 local signalStream, signalStreamOut = kobject.newStream()
 kobject.setLabel(signalStream, "Signal Stream")
 
+local processCleanupHandlers = {}
+
 function zero.handleSignal(sig)
 	os.logf("ZERO", "Handle signal %s", sig[1])
 	
 	--Morph signal stream here--
+	if sig[1] == "process_death" then
+		for _, func in pairs(processCleanupHandlers) do
+			func(sig[2], sig[3])
+		end
+	end
 	
 	signalStreamOut:send(sig)
 end
@@ -49,6 +56,7 @@ do
 	
 	local globalServices = {}
 	local localServices = {}
+	local awaitingProcesses = {}
 	
 	function zeroapi.service_get(pid, name)
 		local ls = localServices[pid]
@@ -85,8 +93,10 @@ do
 	function zeroapi.service_await(pid, name)
 		local completer, future = kobject.newFuture()
 		
+		awaitingProcesses[pid] = true
+		
 		proc.createThread(function()
-			while true do
+			while awaitingProcesses[pid] do
 				local svc = zeroapi.service_get(pid, name)
 				if svc then
 					completer:complete(svc)
@@ -97,6 +107,11 @@ do
 		end, "service_check_"..name.."_for_"..pid)
 		
 		return future
+	end
+	
+	function processCleanupHandlers.zeroapi(pid, ppid)
+		awaitingProcesses[pid] = nil
+		localServices[pid] = nil
 	end
 	
 	--Process API--

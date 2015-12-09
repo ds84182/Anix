@@ -76,5 +76,5 @@ function LeaveINIT()
 		if signal[1] then
 			signalStreamWrite:send(signal)
 		end
-	end)
+	end, signalStreamWrite)
 end

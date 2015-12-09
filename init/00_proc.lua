@@ -227,7 +227,7 @@ function proc.resumeThread(id)
 	handleThread(id, threads[id])
 end
 
-function proc.run(callback)
+function proc.run(callback, signalStream)
 	os.log("PROC", "Process Space started")
 	proc.run = nil
 	--enter a loop that runs processes--
@@ -284,6 +284,7 @@ function proc.run(callback)
 				if proc.canEnd(id) then --some of the delete methods create new threads for their owner process
 					proc.reparentChildren(id)
 					processes[id] = nil
+					signalStream:send({"process_death", id, process.parent})
 				else
 					os.logf("PROC", "Process %d spawned new threads or objects in object deletion", id)
 				end

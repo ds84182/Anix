@@ -15,10 +15,16 @@ local ReadStream = kobject.mt {
 function ReadStream.__index:init()
 	kobject.checkType(self, ReadStream)
 	
-	local data = objects[self].data
+	--We want to have a unique per object identity for each ReadStream
+	kobject.divergeIdentity(self)
+	
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
 	
 	data.readStreams = data.readStreams or {}
-	data.readStreams[self] = {
+	data.readStreams[identity] = {
+		stream = self,
 		mailbox = {},
 		callback = nil,
 		onCloseCallback = nil
@@ -29,16 +35,20 @@ function ReadStream.__index:initClone(other, init)
 	kobject.checkType(self, ReadStream)
 	
 	if init or kobject.isA(other, "WriteStream") then
+		if init then os.logf("READSTREAM", "Forced duplicate") end
 		self:init()
 	else
 		--ReadStream clone, this should delete the older one and take over it
-		local data = objects[self].data
-		local stream = data.readStreams[other]
+		local o = objects[self]
+		local data = o.data
+		local identity = o.identity
+		local otherIdentity = objects[other].identity
+		local stream = data.readStreams[otherIdentity]
+		stream.stream = self
 		stream.callback = nil
 		stream.onCloseCallback = nil
-		data.readStreams[self] = stream
-		data.readStreams[other] = nil
 		kobject.delete(other)
+		data.readStreams[identity] = stream
 	end
 end
 
@@ -52,8 +62,11 @@ function ReadStream.__index:listen(callback)
 	kobject.checkType(self, ReadStream)
 	checkArg(1, callback, "function")
 	
-	local data = objects[self].data
-	local stream = data.readStreams[self]
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	os.logf("READSTREAM", "Listen %s", identity)
+	local stream = data.readStreams[identity]
 	stream.callback = callback
 	
 	self:notify()
@@ -65,14 +78,16 @@ function ReadStream.__index:onClose(callback)
 	kobject.checkType(self, ReadStream)
 	checkArg(1, callback, "function")
 	
-	local data = objects[self].data
-	local stream = data.readStreams[self]
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	local stream = data.readStreams[identity]
 	
 	if stream then
 		stream.onCloseCallback = callback
 	else
 		--already closed
-		proc.createThread(callback, nil, nil, objects[self].owner)
+		proc.createThread(callback, nil, nil, o.owner)
 	end
 	
 	return self
@@ -80,15 +95,19 @@ end
 
 function ReadStream.__index:isClosed()
 	kobject.checkType(self, ReadStream)
-	local data = objects[self].data
-	return data.readStreams[self] == nil
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	return data.readStreams[identity] == nil
 end
 
 function ReadStream.__index:close()
 	kobject.checkType(self, ReadStream)
 	
-	local data = objects[self].data
-	local stream = data.readStreams[self]
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	local stream = data.readStreams[identity]
 	
 	--[[if stream then
 		os.logf("RS", "INVOKE CLOSE")
@@ -99,10 +118,10 @@ function ReadStream.__index:close()
 		--We could be in a different process or in the kernel when the GC fires
 		--This is basically a safety measure
 		--os.logf("RS", "INVOKE CLOSE SPAWN")
-		proc.createThread(stream.onCloseCallback, nil, nil, objects[self].owner)
+		proc.createThread(stream.onCloseCallback, nil, nil, o.owner)
 	end
 	
-	data.readStreams[self] = nil
+	data.readStreams[identity] = nil
 end
 
 function ReadStream.__index:delete()
@@ -126,8 +145,10 @@ end
 function ReadStream.__index:update()
 	kobject.checkType(self, ReadStream)
 	
-	local data = objects[self].data
-	local stream = data.readStreams[self]
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	local stream = data.readStreams[identity]
 	
 	if stream then
 		local messageCountdown = 60 --process 60 messages before stopping
@@ -138,7 +159,7 @@ function ReadStream.__index:update()
 			
 			if stream.callback then
 				if message.type == "message" then
-					proc.createThread(stream.callback, nil, {message.data, message.source, self}, objects[self].owner)
+					proc.createThread(stream.callback, nil, {message.data, message.source, self}, o.owner)
 				elseif message.type == "close" then
 					self:close()
 				end
@@ -298,10 +319,13 @@ local WriteStream = kobject.mt {
 }
 
 function WriteStream.__index:close()
+	kobject.checkType(self, WriteStream)
+	
 	--close all attached read streams--
 	local data = objects[self].data
 	if data.readStreams then
-		for stream, v in pairs(data.readStreams) do
+		for _, v in pairs(data.readStreams) do
+			local stream = v.stream
 			v.mailbox[#v.mailbox+1] = {type = "close"}
 			
 			if stream.notify then
@@ -334,7 +358,8 @@ function WriteStream.__index:send(message)
 	
 	local data = objects[self].data
 	if data.readStreams then
-		for stream, v in pairs(data.readStreams) do
+		for _, v in pairs(data.readStreams) do
+			local stream = v.stream
 			v.mailbox[#v.mailbox+1] = {type = "message", data = kobject.copyFor(stream, message), source = proc.getCurrentProcess()}
 			--os.logf("WS", "Send message %s", v.mailbox[#v.mailbox])
 			

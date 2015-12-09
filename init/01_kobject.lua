@@ -84,7 +84,7 @@ function kobject.copy(v, pid, cache)
 			
 			local instances = dataToInstances[objects[v].data]
 			for instance in pairs(instances) do
-				if objects[instance].owner == pid and objects[instance].metatable == objects[v].metatable then
+				if objects[instance].owner == pid and objects[instance].metatable == objects[v].metatable and objects[instance].identity == objects[v].identity then
 					clone = instance
 					break
 				end
@@ -167,7 +167,13 @@ end
 
 function kobject.new(metatable, ...)
 	local o = setmetatable({}, metatable)
-	objects[o] = {data = {id = {}, creator = nil}, owner = nil, clonedFrom = nil, metatable = metatable}
+	objects[o] = {
+		data = {id = {}, creator = nil},
+		owner = nil,
+		clonedFrom = nil,
+		identity = {},
+		metatable = metatable
+	}
 	
 	dataToInstances[objects[o].data] = setmetatable({[o] = true}, MODE_KEYS)
 	
@@ -190,9 +196,16 @@ function kobject.clone(other, metatable, ...)
 	--links the same data to a new kobject
 	metatable = metatable or objects[other].metatable
 	local o = setmetatable({}, metatable)
-	objects[o] = {data = objects[other].data, owner = nil, clonedFrom = other, metatable = metatable}
+	local oother = objects[other]
+	objects[o] = {
+		data = oother.data,
+		owner = oother.owner,
+		clonedFrom = other,
+		identity = oother.identity,
+		metatable = metatable
+	}
 	
-	dataToInstances[objects[other].data][o] = true
+	dataToInstances[oother.data][o] = true
 	
 	if o.initClone then
 		o:initClone(other, ...)
@@ -201,6 +214,13 @@ function kobject.clone(other, metatable, ...)
 	end
 	
 	return o
+end
+
+--Creates a new identity
+function kobject.divergeIdentity(obj)
+	checkObject(1, obj)
+	
+	objects[obj].identity = {}
 end
 
 function kobject.setLabel(obj, label)

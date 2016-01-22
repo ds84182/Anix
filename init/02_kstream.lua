@@ -1,11 +1,14 @@
 local objects = kobject.objects
 
+--TODO: Add onListen and onClose callback to WriteStream
+
 --Kernel streams--
 local ReadStream = kobject.mt {
 	__index = {
 		--async = true, --Async objects need update() to be called every now and then
 		threadSpawning = true,
-		closeable = true
+		closeable = true,
+		activatable = true --call isActive to determine if it's active or not when doing the threadSpawning check
 	},
 	__type = "ReadStream"
 }
@@ -24,7 +27,7 @@ function ReadStream.__index:init()
 	
 	data.readStreams = data.readStreams or {}
 	data.readStreams[identity] = {
-		stream = self,
+		stream = kobject.weakref(self),
 		mailbox = {},
 		callback = nil,
 		onCloseCallback = nil
@@ -44,7 +47,7 @@ function ReadStream.__index:initClone(other, init)
 		local identity = o.identity
 		local otherIdentity = objects[other].identity
 		local stream = data.readStreams[otherIdentity]
-		stream.stream = self
+		stream.stream = kobject.weakref(self)
 		stream.callback = nil
 		stream.onCloseCallback = nil
 		kobject.delete(other)
@@ -58,6 +61,17 @@ function ReadStream.__index:duplicate()
 	return kobject.clone(self, ReadStream, true)
 end
 
+function ReadStream.__index:isActive()
+	kobject.checkType(self, ReadStream)
+	
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	local stream = data.readStreams[identity]
+	
+	return stream.callback ~= nil
+end
+
 function ReadStream.__index:listen(callback)
 	kobject.checkType(self, ReadStream)
 	checkArg(1, callback, "function")
@@ -65,11 +79,16 @@ function ReadStream.__index:listen(callback)
 	local o = objects[self]
 	local data = o.data
 	local identity = o.identity
-	os.logf("READSTREAM", "Listen %s", identity)
 	local stream = data.readStreams[identity]
 	stream.callback = callback
 	
 	self:notify()
+	
+	local writeStreamData = data.writeStream
+	if writeStreamData then
+		writeStreamData.mailbox[#writeStreamData.mailbox+1] = {"listen"}
+		writeStreamData.stream.ref:notify()
+	end
 	
 	return self
 end
@@ -121,7 +140,17 @@ function ReadStream.__index:close()
 		proc.createThread(stream.onCloseCallback, nil, nil, o.owner)
 	end
 	
+	local writeStreamData = data.writeStream
+	if writeStreamData then
+		writeStreamData.mailbox[#writeStreamData.mailbox+1] = {"close"}
+		writeStreamData.stream.ref:notify()
+	end
+	
 	data.readStreams[identity] = nil
+	
+	--[[if not next(data.readStreams) then
+		os.logf("RS", "No more readstreams!")
+	end]]
 end
 
 function ReadStream.__index:delete()
@@ -172,7 +201,7 @@ function ReadStream.__index:update()
 end
 
 do
-	--High level ReadStream API--
+	--High Order Function ReadStream API--
 	
 	--Creates a new stream from this stream that converts each message into zero or more messages
 	function ReadStream.__index:expand(convert)
@@ -180,21 +209,23 @@ do
 		checkArg(1, convert, "function")
 	
 		local rs, ws = kobject.newStream()
-	
-		self:listen(function(data, source)
-			local list = convert(data, source)
+		
+		ws:onListen(function() --start processing the data when needed
+			self:listen(function(data, source)
+				local list = convert(data, source)
 			
-			if type(list) == "table" then
-				for i=1, #list do
-					ws:send(list[i])
+				if type(list) == "table" then
+					for i=1, #list do
+						ws:send(list[i])
+					end
+				else
+					--TODO Error
 				end
-			else
-				--TODO Error
-			end
-		end)
+			end)
 	
-		self:onClose(function()
-			ws:close()
+			self:onClose(function()
+				ws:close()
+			end)
 		end)
 	
 		return rs
@@ -206,13 +237,15 @@ do
 		checkArg(1, convert, "function")
 	
 		local rs, ws = kobject.newStream()
+		
+		ws:onListen(function()
+			self:listen(function(data, source)
+				ws:send(convert(data, source))
+			end)
 	
-		self:listen(function(data, source)
-			ws:send(convert(data, source))
-		end)
-	
-		self:onClose(function()
-			ws:close()
+			self:onClose(function()
+				ws:close()
+			end)
 		end)
 	
 		return rs
@@ -226,27 +259,29 @@ do
 		checkArg(1, convert, "function")
 	
 		local rs, ws = kobject.newStream()
-	
-		self:listen(function(data, source)
-			local list = convert(true, data, source)
+		
+		ws:onListen(function()
+			self:listen(function(data, source)
+				local list = convert(true, data, source)
 			
-			if type(list) == "table" then
-				for i=1, #list do
-					ws:send(list[i])
+				if type(list) == "table" then
+					for i=1, #list do
+						ws:send(list[i])
+					end
 				end
-			end
-		end)
+			end)
 	
-		self:onClose(function()
-			local list = convert(false)
+			self:onClose(function()
+				local list = convert(false)
 			
-			if type(list) == "table" then
-				for i=1, #list do
-					ws:send(list[i])
+				if type(list) == "table" then
+					for i=1, #list do
+						ws:send(list[i])
+					end
 				end
-			end
 			
-			ws:close()
+				ws:close()
+			end)
 		end)
 	
 		return rs
@@ -256,15 +291,17 @@ do
 	function ReadStream.__index:pipe(ws)
 		kobject.checkType(self, ReadStream)
 		kobject.checkType(ws, WriteStream)
-	
-		self:listen(function(data)
-			ws:send(data)
-		end)
-	
+		
 		local completer, future = kobject.newFuture()
+		
+		ws:onListen(function()
+			self:listen(function(data)
+				ws:send(data)
+			end)
 	
-		self:onClose(function()
-			completer:complete()
+			self:onClose(function()
+				completer:complete()
+			end)
 		end)
 	
 		return future
@@ -298,18 +335,84 @@ do
 		checkArg(1, test, "function")
 	
 		local rs, ws = kobject.newStream()
+		
+		ws:onListen(function()
+			self:listen(function(data, source)
+				if test(data, source) then
+					ws:send(data)
+				end
+			end)
 	
-		self:listen(function(data, source)
-			if test(data, source) then
-				ws:send(data)
-			end
-		end)
-	
-		self:onClose(function()
-			ws:close()
+			self:onClose(function()
+				ws:close()
+			end)
 		end)
 	
 		return rs
+	end
+	
+	function ReadStream.__index:single()
+		kobject.checkType(self, ReadStream)
+		
+		local completer, future = kobject.newFuture()
+		
+		self:listen(function(data)
+			completer:complete(data)
+			self:close()
+		end)
+		
+		self:onClose(function()
+			if kobject.isA(completer, "Completer") then
+				completer:error("Stream closed")
+			end
+		end)
+		
+		return future
+	end
+	
+	function ReadStream.__index:count(cnt)
+		kobject.checkType(self, ReadStream)
+		
+		local rs, ws = kobject.newStream()
+		
+		ws:onListen(function()
+			self:listen(function(data)
+				ws:send(data)
+				cnt = cnt-1
+				if cnt <= 0 then
+					ws:close()
+				end
+			end)
+		
+			self:onClose(function()
+				if kobject.isA(ws, "WriteStream") then
+					ws:close()
+				end
+			end)
+		end)
+		
+		return rs
+	end
+	
+	function ReadStream.__index:firstWhere(compare)
+		kobject.checkType(self, ReadStream)
+		
+		local completer, future = kobject.newFuture()
+		
+		self:listen(function(data)
+			if compare(data) then
+				completer:complete(data)
+				self:close()
+			end
+		end)
+		
+		self:onClose(function()
+			if kobject.isA(completer, "Completer") then
+				completer:error("Stream closed")
+			end
+		end)
+		
+		return future
 	end
 end
 
@@ -318,17 +421,53 @@ local WriteStream = kobject.mt {
 	__type = "WriteStream"
 }
 
+--TODO: data.writeStreams, onListen handler
+
+function WriteStream.__index:init()
+	local data = objects[self].data
+	
+	data.writeStream = {
+		stream = kobject.weakref(self),
+		mailbox = {},
+		onReadStreamListen = nil,
+		onReadStreamClose = nil
+	}
+end
+
+function WriteStream.__index:initClone(other)
+	kobject.checkType(self, WriteStream)
+	kobject.checkType(other, WriteStream)
+	
+	local data = objects[self].data
+	
+	assert(data == objects[other].data, "WriteStreams are not the same!")
+	
+	data.writeStream = {
+		stream = kobject.weakref(self),
+		mailbox = {},
+		onReadStreamListen = nil,
+		onReadStreamClose = nil --TODO: Pause and resume support
+	}
+	kobject.delete(other)
+	
+	os.logf("WRITESTREAM", "WriteStream cloned!")
+	--TODO: Single WriteStream, multiple ReadStream, method to merge multiple write streams together
+	--When a writestream is cloned, it's MOVED (the source gets deleted)
+end
+
 function WriteStream.__index:close()
 	kobject.checkType(self, WriteStream)
 	
 	--close all attached read streams--
 	local data = objects[self].data
+	data.writeStream = nil
 	if data.readStreams then
 		for _, v in pairs(data.readStreams) do
-			local stream = v.stream
-			v.mailbox[#v.mailbox+1] = {type = "close"}
+			local stream = v.stream.ref
 			
-			if stream.notify then
+			if stream then
+				v.mailbox[#v.mailbox+1] = {type = "close"}
+			
 				stream:notify()
 			end
 		end
@@ -338,17 +477,27 @@ end
 function WriteStream.__index:delete()
 	kobject.checkType(self, WriteStream)
 	
-	local hasWriteStream = false
-	for other in pairs(kobject.instancesOf(self)) do
-		if other ~= self and kobject.isA(other, WriteStream) then
-			hasWriteStream = true
-			break
-		end
-	end
+	local data = objects[self].data
 	
-	if not hasWriteStream then
+	if data.writeStream and data.writeStream.stream.ref == self then
 		self:close()
 	end
+end
+
+function WriteStream.__index:onListen(func)
+	kobject.checkType(self, WriteStream)
+	
+	local data = objects[self].data
+	
+	data.writeStream.onReadStreamListen = func
+end
+
+function WriteStream.__index:onClose(func)
+	kobject.checkType(self, WriteStream)
+	
+	local data = objects[self].data
+	
+	data.writeStream.onReadStreamClose = func
 end
 
 function WriteStream.__index:send(message)
@@ -359,12 +508,43 @@ function WriteStream.__index:send(message)
 	local data = objects[self].data
 	if data.readStreams then
 		for _, v in pairs(data.readStreams) do
-			local stream = v.stream
-			v.mailbox[#v.mailbox+1] = {type = "message", data = kobject.copyFor(stream, message), source = proc.getCurrentProcess()}
-			--os.logf("WS", "Send message %s", v.mailbox[#v.mailbox])
+			local stream = v.stream.ref
 			
-			if stream.notify then
+			if stream then
+				v.mailbox[#v.mailbox+1] = {type = "message", data = kobject.copyFor(stream, message), source = proc.getCurrentProcess()}
+				--os.logf("WS", "Send message %s", v.mailbox[#v.mailbox])
+				
 				stream:notify()
+			end
+		end
+	end
+end
+
+function WriteStream.__index:notify()
+	kobject.checkType(self, WriteStream)
+	
+	kobject.notify(self)
+end
+
+function WriteStream.__index:onNotification(val)
+	kobject.checkType(self, WriteStream)
+	
+	local o = objects[self]
+	local data = o.data
+	local identity = o.identity
+	local stream = data.writeStream
+	
+	if stream then
+		local messageCountdown = 60 --process 60 messages before stopping
+		while stream.mailbox[1] and messageCountdown > 0 do
+			messageCountdown = messageCountdown-1
+			local message = table.remove(stream.mailbox, 1)
+			--os.logf("RS", "Receive message %s", message)
+			
+			if message[1] == "close" and stream.onReadStreamClose then
+				proc.createThread(stream.onReadStreamClose, nil, nil, o.owner)
+			elseif message[1] == "listen" and stream.onReadStreamListen then
+				proc.createThread(stream.onReadStreamListen, nil, nil, o.owner)
 			end
 		end
 	end

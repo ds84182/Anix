@@ -12,6 +12,9 @@ local apienv = {
 		getLabel = kobject.getLabel,
 		countInstances = kobject.countInstances,
 		getCreator = kobject.getCreator,
+		declareWeak = kobject.declareWeak,
+		isWeak = kobject.isWeak,
+		isValid = kobject.isValid,
 		isA = kobject.isA,
 		checkType = kobject.checkType
 	},
@@ -21,7 +24,11 @@ local apienv = {
 		setEnv = proc.setEnv,
 		listEnv = proc.listEnv,
 		getTrustLevel = proc.getTrustLevel,
-		createThread = proc.createThread
+		isTrusted = proc.isTrusted,
+		createThread = proc.createThread,
+		listProcesses = proc.listProcesses,
+		getProcessInfo = proc.getProcessInfo,
+		getProcessKernelObjects = proc.getProcessKernelObjects,
 		--[[createThread = function(func, name, args)
 			return proc.createThread(func, name, args)
 		end]]

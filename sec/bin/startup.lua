@@ -3,7 +3,8 @@
 local function execute(path)
 	local handle, err = await(fs.open(path, "r"))
 	if handle then
-		local source = await(await(fs.readAsStream(handle, math.huge)):join())
+		local source = await(fs.readAsStream(handle, math.huge):join())
+		fs.close(handle)
 		local pid, err = await(proc.spawn(source, path:match("/?([^/]+)$"):gsub("%.lua$", ""), nil, {}))
 		
 		if not pid then
@@ -19,12 +20,17 @@ fs.open("/sec/etc/startup", "r"):after(function(handle)
 	os.logf("BENCH", "%s ms", (os.clock()-a)*1000)
 	os.logf("MAIN", "%s", tostring(handle))
 	if handle then
-		await(fs.readAsStream(handle, math.huge))
+		fs.readAsStream(handle, math.huge)
 			:transform(utils.newLineSplitter())
 			:where(function(line) return line:sub(1,1) ~= "#" and #line > 0 end)
 			:listen(function(line)
 				os.logf("MAIN", "Starting %s", line)
 				execute(line)
 			end)
+			:onClose(function()
+				fs.close(handle)
+			end)
+	else
+		os.log("MAIN", "Startup list not found at /sec/etc/startup!")
 	end
 end)

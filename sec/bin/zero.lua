@@ -48,8 +48,21 @@ do
 		os.log(tag, ...)
 	end
 	
+	local processStreams = {}
+	
 	function zeroapi.signalstream(pid)
-		return signalStream:duplicate()
+		if not processStreams[pid] then
+			processStreams[pid] = signalStream:duplicate():where(function(sig)
+				if sig[1] == "process_death" and sig[3] ~= pid then
+					return false
+				end
+				
+				return true
+			end)
+			kobject.setLabel(processStreams[pid], "ZeroAPI::SignalStream")
+		end
+		
+		return processStreams[pid]:duplicate()
 	end
 	
 	--Service API--
@@ -73,6 +86,33 @@ do
 		if globalServices[name] then
 			return globalServices[name]
 		end
+	end
+	
+	function zeroapi.service_list(pid, mode)
+		local list = {}
+		
+		mode = mode or "both"
+		
+		if mode ~= "global" then
+			local cpid = pid
+			while cpid >= 0 do
+				local ls = localServices[cpid]
+				if ls then
+					for name in pairs(ls) do
+						list[#list+1] = name
+					end
+				end
+				cpid = proc.getParentProcess(cpid)
+			end
+		end
+		
+		if mode ~= "local" then
+			for name in pairs(globalServices) do
+				list[#list+1] = name
+			end
+		end
+		
+		return list
 	end
 	
 	function zeroapi.service_registerlocal(pid, name, ko)

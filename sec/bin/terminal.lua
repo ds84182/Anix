@@ -65,12 +65,37 @@ local function startTerminalHandlerThread(state)
 		local exit = false
 		local onExit
 		
+		local function checkField(event, fieldName, ...)
+			local typ = type(event[fieldName])
+			for i=1, select("#", ...) do
+				if typ == select(i, ...) then
+					return true
+				end
+			end
+			
+			if event.done and kobject.isA(event.done, "Completer") then
+				event.done:error("expected "..table.concat(table.pack(...), " or ").." in event."..fieldName..", got "..typ)
+			else
+				os.logf("TERM", "expected %s in event.%s, got %s", table.concat(table.pack(...), " or "), fieldName, typ)
+			end
+			
+			return false
+		end
+		
 		local function processEvent(event)
 			if event.type == "set_blink" then
 				state.cursorBlink = event.blink
 				--[[completer:complete()
 				completer, future = kobject.newFuture()]]
 			elseif event.type == "move_cursor" then
+				if not checkField(event, "x", "number") then
+					return
+				end
+				
+				if not checkField(event, "y", "number") then
+					return
+				end
+				
 				if cursorOn then
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, char))
 					cursorOn = false
@@ -79,6 +104,10 @@ local function startTerminalHandlerThread(state)
 				state.cursorX = event.x
 				state.cursorY = event.y
 			elseif event.type == "write" then
+				if not checkField(event, "text", "string") then
+					return
+				end
+				
 				if cursorOn then
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, char))
 					cursorOn = false
@@ -93,6 +122,18 @@ local function startTerminalHandlerThread(state)
 				
 				char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
 			elseif event.type == "put" then
+				if not checkField(event, "x", "number") then
+					return
+				end
+				
+				if not checkField(event, "y", "number") then
+					return
+				end
+				
+				if not checkField(event, "text", "string") then
+					return
+				end
+				
 				if cursorOn then
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, char))
 					cursorOn = false
@@ -105,6 +146,30 @@ local function startTerminalHandlerThread(state)
 				
 				char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
 			elseif event.type == "copy" then
+				if not checkField(event, "x", "number") then
+					return
+				end
+				
+				if not checkField(event, "y", "number") then
+					return
+				end
+				
+				if not checkField(event, "width", "number") then
+					return
+				end
+				
+				if not checkField(event, "height", "number") then
+					return
+				end
+				
+				if not checkField(event, "destx", "number") then
+					return
+				end
+				
+				if not checkField(event, "desty", "number") then
+					return
+				end
+				
 				if cursorOn then
 					await(state.gpu:invoke("set", state.cursorX, state.cursorY, char))
 					cursorOn = false
@@ -118,15 +183,29 @@ local function startTerminalHandlerThread(state)
 				char = await(state.gpu:invoke("get", state.cursorX, state.cursorY))
 			elseif event.type == "exit" then
 				exit = true --exit the blinking thread
-				onExit = event.onExit
+				
+				if kobject.isA(event.onExit, "Completer") then
+					onExit = event.onExit
+				end
+			elseif event.type == "get_state" then
+				return {
+					cursorX = state.cursorX,
+					cursorY = state.cursorY,
+					cursorBlink = state.cursorBlink
+				}
+			elseif event.type == "get_resolution" then
+				local w,h = await(state.gpu:invoke("getResolution"))
+				
+				return {width = w, height = h}
 			end
 		end
 	
 		state.stream:listen(function(event)
-			state.mutex:performAtomic(processEvent, event)
+			local value = state.mutex:performAtomic(processEvent, event)
 			
-			if event.done then
-				event.done:complete()
+			if event.done and kobject.isA(event.done, "Completer") then
+				os.logf("TERM", "%s %s %s", event.type, tostring(event.done), tostring(value))
+				event.done:complete(value)
 			end
 		end)
 		
@@ -198,6 +277,7 @@ function term.add(pid, name, object)
 	end
 	
 	local handle = kobject.newHandle()
+	kobject.setLabel(handle, "Terminal::"..name)
 	handles[name] = handle
 	local rs, ws = kobject.newStream()
 	terminalState[handle:getId()] = {
@@ -244,6 +324,20 @@ function term.get(pid, name)
 	checkArg(1, name, "string")
 	return handles[name]
 end
+
+function term.sendEvent(pid, handle, event)
+	kobject.checkType(handle, "Handle")
+	
+	local state = terminalState[handle:getId()]
+	
+	if state then
+		state.events:send(event)
+	else
+		error("invalid terminal handle")
+	end
+end
+
+--XXX: These term functions are depreciated and will be removed soon.
 
 function term.setCursor(pid, handle, x, y)
 	kobject.checkType(handle, "Handle")
@@ -354,6 +448,7 @@ function term.copy(pid, handle, x, y, width, height, destx, desty)
 	end
 end
 
+--TODO: Maybe move term.read to per process termlib, and then have term.moveCursor for relative movements
 function term.read(pid, handle, signalStream, line, history, tabResolver, pwchar)
 	kobject.checkType(handle, "Handle")
 	kobject.checkType(signalStream, "ReadStream")
@@ -361,7 +456,6 @@ function term.read(pid, handle, signalStream, line, history, tabResolver, pwchar
 	checkArg(3, history, "table", "nil")
 	if tabResolver then kobject.checkType(tabResolver, "Export") end
 	checkArg(4, pwchar, "string", "nil")
-	
 	
 	local state = terminalState[handle:getId()]
 	

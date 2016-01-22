@@ -153,6 +153,7 @@ local function resume(thread, ...)
 			--sleep
 			thread.waiting = true
 			thread.waitUntil = computer.uptime()+r[2]
+			thread.resume = {true}
 		else
 			thread.waiting = false
 			thread.waitingOn = nil
@@ -185,7 +186,7 @@ local function handleThread(id, thread)
 			resume(thread, table.unpack(thread.resume))
 			thread.resume = nil
 		else
-			resume(thread)
+			resume(thread, true)
 		end
 		--os.logf("PROC", "Thread time: %f", (os.clock()-a)*1000)
 	
@@ -317,8 +318,17 @@ function proc.getCurrentProcess()
 	return currentThread and currentThread.process or nil
 end
 
-function proc.getTrustLevel()
+function proc.getTrustLevel(pid)
+	if pid then
+		if pid == -1 then return -1 end
+		return processes[pid].trustLevel or -1
+	end
+	
 	return currentThread and processes[currentThread.process].trustLevel or -1
+end
+
+function proc.isTrusted(pid)
+	return proc.getTrustLevel(pid) <= 1000
 end
 
 function proc.getParentProcess(pid)
@@ -331,16 +341,44 @@ function proc.getProcessName(pid)
 	return processes[pid].name
 end
 
+function proc.canProcessModifyProcess(pidA, pidB)
+	if (not processes[pidA]) or (not processes[pidB]) then
+		return false
+	end
+	
+	if pidA == pidB then
+		return true
+	end
+	
+	if processes[pidB].parent == pidA then
+		return true
+	end
+	
+	if proc.isTrusted(pidA) then
+		return true
+	end
+end
+
 function proc.getEnv(name, pid)
-	checkArg(1,name,"string")
+	checkArg(1, name, "string")
+	checkArg(2, pid, "number", "nil")
+	
 	pid = pid or proc.getCurrentProcess()
+	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
+		return nil, "Permission Denied"
+	end
 	
 	return processes[pid].variables[tostring(name)]
 end
 
 function proc.setEnv(name, value, pid)
-	checkArg(1,name,"string")
+	checkArg(1, name, "string")
+	checkArg(3, pid, "number", "nil")
+	
 	pid = pid or proc.getCurrentProcess()
+	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
+		return nil, "Permission Denied"
+	end
 	
 	local m, why = kobject.isMarshallable(value)
 	if not m then
@@ -351,7 +389,12 @@ end
 
 function proc.listEnv(env, pid)
 	checkArg(1,env,"table","nil")
+	checkArg(2, pid, "number", "nil")
+	
 	pid = pid or proc.getCurrentProcess()
+	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
+		return nil, "Permission Denied"
+	end
 	
 	env = env or {}
 	for name, value in pairs(processes[pid].variables) do
@@ -375,10 +418,19 @@ function proc.canEnd(pid)
 		end
 		
 		--check if we have any thread spawning kernel objects--
+		--also, check if those objects have any references to itself in other processes if they spawn threads externally
+			--(from other processes, not CPU events or anything super<process>natural)
 		--threadSpawning = true
 		for object, o in pairs(kobject.objects) do
-			if o.owner == pid and object.threadSpawning and ((not object.closeable) and true or (not object:isClosed())) then
-				os.logf("PROC", "Process %d owns thread spawning object %s", pid, object)
+			if o.owner == pid
+				and object.threadSpawning
+				and ((not object.closeable) and true or (not object:isClosed()))
+				and (object.threadSpawningInternal and false or kobject.countOwningProcesses(object) > 1)
+				and ((not object.activatable) and true or (object:isActive()))
+				and not kobject.weakObjects[object] then
+				os.logf("PROC", "Process %d owns thread spawning object %s (opened %s, active %s)", pid, object,
+					((not object.closeable) and true or (not object:isClosed())),
+					((not object.activatable) and true or (object:isActive())))
 				return false
 			end
 		end
@@ -393,6 +445,64 @@ function proc.reparentChildren(ppid)
 			process.parent = 0
 		end
 	end
+end
+
+function proc.listProcesses()
+	local list = {}
+	
+	for id in pairs(processes) do
+		list[#list+1] = id
+	end
+	
+	table.sort(list)
+	
+	return list
+end
+
+function proc.getProcessInfo(pid)
+	checkArg(1, pid, "number")
+	
+	if not processes[pid] then
+		return nil
+	end
+	
+	local info = {}
+	
+	local p = processes[pid]
+	
+	info.id = pid
+	info.name = p.name
+	info.trustLevel = p.trustLevel
+	info.parent = p.parent
+	
+	info.kernelObjectCount = kobject.countProcessObjects(pid)
+	info.threadCount = 0
+	
+	for id, thread in pairs(threads) do
+		if thread.process == pid then
+			info.threadCount = info.threadCount+1
+		end
+	end
+	
+	return info
+end
+
+function proc.getProcessKernelObjects(pid)
+	if pid and pid ~= proc.getCurrentProcess() and not proc.isTrusted() then
+		return nil, "Permission Denied"
+	end
+	
+	pid = pid or proc.getCurrentProcess()
+	
+	local list = {}
+	
+	for object, objectData in pairs(kobject.objects) do
+		if objectData.owner == pid then
+			list[#list+1] = object
+		end
+	end
+	
+	return list
 end
 
 --[=[function ps.getInfo(id,info)

@@ -46,7 +46,7 @@ end
 
 local function combine(...)
 	local np = {}
-	for i, v in ipairs({...}) do
+	for i, v in ipairs(table.pack(...)) do
 		checkArg(i, v, "string")
 		for i, v in ipairs(splitPath(v)) do
 			np[#np+1] = v
@@ -89,7 +89,20 @@ local function canModify(path)
 	return true
 end
 
-local function getMountAndPath(path)
+local function getMountAndPath(path, pid)
+	if path:sub(1,1) ~= "/" then
+		if not pid then
+			os.logf("FS", "Relative path %s used outside of a process context?", path)
+		else
+			local workdir = proc.getEnv("PWD", pid)
+			if type(workdir) ~= "string" then
+				workdir = ""
+			end
+			
+			path = combine(workdir, path)
+		end
+	end
+	
 	local spath
 	path,spath = fixPath(path)
 	if mounts[path] then
@@ -110,7 +123,7 @@ function fs.mount(pid, path, object)
 	--path can be anything
 	--object can either be a component address, or an kExport
 	
-	if proc.getTrustLevel(pid) <= 1000 then
+	if proc.isTrusted(pid) then
 		checkArg(1, path, "string")
 		checkArg(2, object, "table", "string")
 		
@@ -133,7 +146,7 @@ function fs.mount(pid, path, object)
 end
 
 function fs.unmount(pid, path)
-	if proc.getTrustLevel(pid) <= 1000 then
+	if proc.isTrusted(pid) then
 		checkArg(1, path, "string")
 		--if not filesystem.canModify(path) then return false, "permission denied" end
 		mounts[fixPath(path)] = nil
@@ -156,20 +169,32 @@ function fs.open(pid, path, mode)
 	mode = mode or "r"
 	checkArg(2, mode, "string", "nil")
 	
-	local mount, subpath = getMountAndPath(path)
+	local mount, subpath = getMountAndPath(path, pid)
 	
 	local fh, err = await(mount:invoke("open", subpath))
 	
 	if fh then
 		local handle = kobject.newHandle()
 		
-		fileHandles[handle:getId()] = {handle = fh, mount = mount, path = path, subpath = subpath}
+		fileHandles[handle:getId()] = {handle = fh, mount = mount, path = path, subpath = subpath, owner = pid}
 		kHandleReferences[handle] = true
 		
 		return handle
 	else
 		return nil, err
 	end
+end
+
+function fs.getHandleInfo(pid, handle)
+	kobject.checkType(handle, "Handle")
+	
+	local handleRef = fileHandles[handle:getId()]
+	
+	return {
+		path = handleRef.path,
+		subpath = handleRef.subpath,
+		owner = handleRef.owner
+	}
 end
 
 function fs.read(pid, handle, bytes)
@@ -187,8 +212,9 @@ end
 --a kapi version that spawns it inside it's own process instead of ours
 function fs.readAsStream(pid, handle, blockSize)
 	kobject.checkType(handle, "Handle")
-	bytes = bytes or math.huge
-	checkArg(2, bytes, "number", "nil")
+	checkArg(2, blockSize, "number", "nil")
+	
+	blockSize = blockSize or math.huge
 	
 	local handleRef = fileHandles[handle:getId()]
 	local readStream, writeStream = kobject.newStream()
@@ -240,7 +266,7 @@ end
 function fs.exists(pid, path)
 	checkArg(1, path, "string")
 	
-	local mount, subpath = getMountAndPath(path)
+	local mount, subpath = getMountAndPath(path, pid)
 	
 	return await(mount:invoke("exists", subpath))
 end
@@ -272,9 +298,10 @@ end)]=]
 
 proc.createThread(function()
 	while true do
-		sleep(60)
+		sleep(10)
 		for handle in pairs(kHandleReferences) do
 			if not handle:hasOthers() then
+				os.logf("FS", "Closing unclosed handle %s", fileHandles[handle:getId()].path)
 				fs.close(proc.getCurrentProcess(), handle)
 			end
 		end

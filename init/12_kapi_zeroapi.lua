@@ -35,6 +35,7 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 		
 		--service API
 		env.service.get = rpcCall "service_get"
+		env.service.list = rpcCall "service_list"
 		env.service.registerLocal = rpcCall "service_registerlocal"
 		env.service.registerGlobal = rpcCall "service_registerglobal"
 		env.service.await = rpcCall "service_await"

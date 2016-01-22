@@ -17,6 +17,9 @@ local MODE_VALUES = {__mode="v"}
 local objects = setmetatable({}, MODE_KEYS) -- keys: object id, value: {objectdata = {}, owner = pid, clonedFrom = kobject}
 kobject.objects = objects
 local dataToInstances = setmetatable({}, MODE_KEYS)
+local weakObjects = setmetatable({}, MODE_KEYS) --weak objects are objects that are not depended on to keep the process running
+--this fixes stdlib bugs where keeping a signalStream open while the rest of the application has already ended
+kobject.weakObjects = weakObjects
 
 local isMarshallable, copy
 
@@ -285,11 +288,46 @@ function kobject.delete(obj)
 end
 
 function kobject.deleteProcessObjects(pid)
+	checkArg(1, pid, "number")
+	
 	for object, od in pairs(objects) do
 		if od.owner == pid then
 			kobject.delete(object)
 		end
 	end
+end
+
+function kobject.countProcessObjects(pid)
+	checkArg(1, pid, "number")
+	
+	local num = 0
+	
+	for object, od in pairs(objects) do
+		if od.owner == pid then
+			num = num+1
+		end
+	end
+	
+	return num
+end
+
+function kobject.countOwningProcesses(object)
+	checkObject(1, object)
+	
+	local notUniqueOwner = {}
+	local count = 0
+	
+	os.logf("KOBJECT", "Counting owned processes for object %s", object)
+	for instance in pairs(dataToInstances[objects[object].data]) do
+		if not notUniqueOwner[objects[instance].owner] then
+			notUniqueOwner[objects[instance].owner] = true
+			
+			count = count+1
+		end
+	end
+	assert(count ~= 0)
+	
+	return count
 end
 
 function kobject.copyFor(obj, v)
@@ -309,6 +347,28 @@ function kobject.countInstances(obj)
 		count = count+1
 	end
 	return count
+end
+
+function kobject.declareWeak(obj)
+	checkObject(1, obj)
+	weakObjects[obj] = true
+end
+
+function kobject.isWeak(obj)
+	checkObject(1, obj)
+	return weakObjects[obj]
+end
+
+local proxy_mt = {__mode = "k", __metatable="No."}
+
+function kobject.weakref(ref)
+	return setmetatable({ref=ref}, proxy_mt)
+end
+
+function kobject.isValid(obj)
+	if not objects[obj] then return false end
+	
+	return true
 end
 
 function kobject.isA(obj, mt)

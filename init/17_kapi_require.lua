@@ -6,6 +6,10 @@ function kapi.patches.require(env, pid, trustLevel)
 		}
 		
 		env.require = function(name)
+			if env.package.loaded[name] then
+				return env.package.loaded[name]
+			end
+			
 			local pathname = name:gsub("%.", "/")
 			
 			local completer, future = kobject.newFuture()
@@ -41,7 +45,8 @@ function kapi.patches.require(env, pid, trustLevel)
 				if path then
 					os.logf("PACKAGE", "Found package at %s", path)
 					local handle = env.await(env.fs.open(path, "r"))
-					env.await(env.fs.readAsStream(handle, math.huge)):join():after(function(src)
+					env.fs.readAsStream(handle, math.huge):join():after(function(src)
+						env.fs.close(handle)
 						local f, e = load(src, "="..name, nil, proc.getGlobals())
 						if not f then error(e) end
 						pkg = f(path) or true

@@ -108,7 +108,13 @@ function Export.__index:update()
 		if data.handler then
 			proc.createThread(function()
 				--r = kobject.copyFor(message.data.reply, r)
-				message.data.reply:complete(data.handler(message.data.method, message.data.arguments, message.source))
+				local ret = table.pack(pcall(data.handler, message.data.method, message.data.arguments, message.source))
+				
+				if ret[1] then
+					message.data.reply:complete(table.unpack(ret, 2))
+				else
+					message.data.reply:error(ret[2])
+				end
 			end, nil, nil, objects[self].owner)
 		end
 	end

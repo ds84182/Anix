@@ -117,6 +117,7 @@ function Completer.__index:error(message)
 	
 	local data = objects[self].data
 	if data.future then
+		os.log("KFUTURE", message)
 		data.future.object:notify({type = "error", message})
 		kobject.delete(self)
 		return true

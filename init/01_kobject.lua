@@ -317,7 +317,6 @@ function kobject.countOwningProcesses(object)
 	local notUniqueOwner = {}
 	local count = 0
 	
-	os.logf("KOBJECT", "Counting owned processes for object %s", object)
 	for instance in pairs(dataToInstances[objects[object].data]) do
 		if not notUniqueOwner[objects[instance].owner] then
 			notUniqueOwner[objects[instance].owner] = true

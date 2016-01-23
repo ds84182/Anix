@@ -74,6 +74,22 @@
 	<td class="name" nowrap><a href="#delete">delete (obj)</a></td>
 	<td class="summary">Deletes a KObject by removing it's attachment to it's data.</td>
 	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#declareWeak">declareWeak (obj)</a></td>
+	<td class="summary">Sets a KObject as weak.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#isWeak">isWeak (obj)</a></td>
+	<td class="summary">Queries whether a KObject is weak or not</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#isValid">isValid (obj)</a></td>
+	<td class="summary">Queries whether an object is still a valid kernel object.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#isA">isA (obj, mt)</a></td>
+	<td class="summary">Queries whether an object is a valid kernel object, and if is subclasses a specific class.</td>
+	</tr>
 </table>
 <h2><a href="#Local_Functions">Local Functions</a></h2>
 <table class="function_list">
@@ -132,6 +148,14 @@
 	<tr>
 	<td class="name" nowrap><a href="#instancesOf">instancesOf (obj)</a></td>
 	<td class="summary">Utility method to get all instances of a piece of data from a KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#countInstances">countInstances (obj)</a></td>
+	<td class="summary">Counts all instances (clones) of a certain KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#weakref">weakref (ref)</a></td>
+	<td class="summary">Creates a weak reference to an object</td>
 	</tr>
 </table>
 
@@ -297,6 +321,114 @@
         </li>
     </ul>
 
+
+
+
+
+</dd>
+    <dt>
+    <a name = "declareWeak"></a>
+    <strong>declareWeak (obj)</strong>
+    </dt>
+    <dd>
+    Sets a KObject as weak.
+ This is used when determining whether to kill a process with no active objects listening to external events.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to declare as weak
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "isWeak"></a>
+    <strong>isWeak (obj)</strong>
+    </dt>
+    <dd>
+    Queries whether a KObject is weak or not
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to query weakness of
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the KObject is weak or not
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "isValid"></a>
+    <strong>isValid (obj)</strong>
+    </dt>
+    <dd>
+    Queries whether an object is still a valid kernel object.
+ Invalid objects include deleted objects and objects that are NOT KObjects.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to query validity of
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the KObject is valid or not
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "isA"></a>
+    <strong>isA (obj, mt)</strong>
+    </dt>
+    <dd>
+    Queries whether an object is a valid kernel object, and if is subclasses a specific class.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to query
+        </li>
+        <li><span class="parameter">mt</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a> or <a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+         Class name or metatable to test with
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the object is valid and subclasses the specified class
+    </ol>
 
 
 
@@ -682,6 +814,59 @@
         </li>
     </ul>
 
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+        All the KObjects attached to the object's data
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "countInstances"></a>
+    <strong>countInstances (obj)</strong>
+    </dt>
+    <dd>
+    Counts all instances (clones) of a certain KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to count instances of
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        Number of KObjects attached to the object's data
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "weakref"></a>
+    <strong>weakref (ref)</strong>
+    </dt>
+    <dd>
+    Creates a weak reference to an object
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">ref</span>
+         Reference to make weak
+        </li>
+    </ul>
+
 
 
 
@@ -694,7 +879,7 @@
 </div> <!-- id="main" -->
 <div id="about">
 <i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.3</a></i>
-<i style="float:right;">Last updated 2016-01-23 11:27:22 </i>
+<i style="float:right;">Last updated 2016-01-23 12:58:13 </i>
 </div> <!-- id="about" -->
 </div> <!-- id="container" -->
 </body>

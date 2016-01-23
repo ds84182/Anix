@@ -427,11 +427,16 @@ end
 --- Utility method to get all instances of a piece of data from a KObject
 -- @local
 -- @tparam KObject obj Object to get the instances of
+-- @treturn table All the KObjects attached to the object's data
 function kobject.instancesOf(obj)
 	checkObject(1, obj)
 	return dataToInstances[objects[obj].data]
 end
 
+--- Counts all instances (clones) of a certain KObject
+-- @local
+-- @tparam KObject obj Object to count instances of
+-- @treturn int Number of KObjects attached to the object's data
 function kobject.countInstances(obj)
 	checkObject(1, obj)
 	local count = 0
@@ -441,11 +446,17 @@ function kobject.countInstances(obj)
 	return count
 end
 
+--- Sets a KObject as weak.
+--- This is used when determining whether to kill a process with no active objects listening to external events.
+-- @tparam KObject obj Object to declare as weak
 function kobject.declareWeak(obj)
 	checkObject(1, obj)
 	weakObjects[obj] = true
 end
 
+--- Queries whether a KObject is weak or not
+-- @tparam KObject obj Object to query weakness of
+-- @treturn boolean Whether the KObject is weak or not
 function kobject.isWeak(obj)
 	checkObject(1, obj)
 	return not not weakObjects[obj]
@@ -453,16 +464,27 @@ end
 
 local proxy_mt = {__mode = "k", __metatable="No."}
 
+--- Creates a weak reference to an object
+-- @local
+-- @param ref Reference to make weak
 function kobject.weakref(ref)
 	return setmetatable({ref=ref}, proxy_mt)
 end
 
+--- Queries whether an object is still a valid kernel object.
+--- Invalid objects include deleted objects and objects that are NOT KObjects.
+-- @tparam KObject obj Object to query validity of
+-- @treturn boolean Whether the KObject is valid or not
 function kobject.isValid(obj)
 	if not objects[obj] then return false end
 	
 	return true
 end
 
+--- Queries whether an object is a valid kernel object, and if is subclasses a specific class.
+-- @tparam KObject obj Object to query
+-- @tparam string|table mt Class name or metatable to test with
+-- @treturn boolean Whether the object is valid and subclasses the specified class
 function kobject.isA(obj, mt)
 	local o = objects[obj]
 	

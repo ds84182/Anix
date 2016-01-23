@@ -448,7 +448,7 @@ end
 
 function kobject.isWeak(obj)
 	checkObject(1, obj)
-	return weakObjects[obj]
+	return not not weakObjects[obj]
 end
 
 local proxy_mt = {__mode = "k", __metatable="No."}
@@ -470,7 +470,7 @@ function kobject.isA(obj, mt)
 	
 	if type(mt) == "string" then
 		return mt == o.metatable.__type or o.metatable.__superclasses[mt]
-	elseif type(mt) == "table" and getmetatable(mt) == nil then
+	elseif type(mt) == "table" and type(getmetatable(mt)) == "nil" then
 		return mt == o.metatable or o.metatable.__superclasses[mt]
 	end
 end

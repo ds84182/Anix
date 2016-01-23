@@ -38,6 +38,7 @@ function LeaveINIT()
 	bootfs.close(fh)
 	
 	local signalStream, signalStreamWrite = kobject.newStream()
+	kobject.setLabel(signalStream, "Kernel Signal Stream")
 	assert(proc.spawn(table.concat(buffer), "zero", {signalStream}))
 	
 	--[=[local export, exportClient = kobject.newExport({func = true}, function(method)

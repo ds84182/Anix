@@ -274,6 +274,16 @@ function inet.removeInterface(pid, name)
 	return true
 end
 
+function inet.listInterfaces(pid)
+	local list = {}
+	
+	for name in pairs(interfaces) do
+		list[#list+1] = name
+	end
+	
+	return list
+end
+
 function inet.request(pid, interface, url, data, headers)
 	return await(request(interface, url, data, headers))
 end

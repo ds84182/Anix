@@ -1,3 +1,7 @@
+------------
+-- Allows you to manage kernel side objects
+-- @module kobject
+
 --Kernel Objects: Objects that are passed to usermode processes from the kernel--
 --KObjects should be duplicated when sent to other processes. This is usually done by invoking kobject.clone with the pid of the
 	--other process
@@ -23,6 +27,11 @@ kobject.weakObjects = weakObjects
 
 local isMarshallable, copy
 
+--- Checks whether an object is marshallable
+-- @param v The object to test
+-- @param hit Table of values already tested
+-- @treturn boolean Whether the passed object is marshallable or not
+-- @treturn string|nil Error Message if the object is not marshallable
 function kobject.isMarshallable(v, hit)
 	if hit and hit[v] then return true end --Table that was already hit before
 	
@@ -61,6 +70,11 @@ end
 
 isMarshallable = kobject.isMarshallable
 
+--- Checks if a value is marshallable (usually used when checking arguments).
+--- It throws an error if the passed value is not marshallable in the format
+--- "bad argument #<argn> (<value type> not marshallable: <why>)"
+-- @int argn The number for the argument it's checking, for formmating purposes
+-- @param val The value to check
 function kobject.checkMarshallable(argn, val)
 	local m, why = isMarshallable(val)
 	
@@ -69,6 +83,12 @@ function kobject.checkMarshallable(argn, val)
 	end
 end
 
+--- Copies a marshallable value from one process to another
+-- @local
+-- @param v Value to copy
+-- @int pid Process to copy the value for
+-- @tab[opt] cache Object cache
+-- @return The value copied for the process given
 function kobject.copy(v, pid, cache)
 	--copys a value for marshall
 	--this also gets a pid passed in for kobject clone ownership
@@ -123,6 +143,12 @@ function kobject.copy(v, pid, cache)
 end
 copy = kobject.copy
 
+--- Creates a metatable for KObject types over an existing metatable.
+---
+--- The passed metatable must be in the format {__type = string, __index = table}
+-- @local
+-- @tab m The metatable to modify
+-- @treturn table The modified metatable
 function kobject.mt(m)
 	m.__tostring = function(s)
 		local o = objects[s].data
@@ -168,6 +194,11 @@ function kobject.mt(m)
 	return m
 end
 
+--- Creates a new unowned KObject from the passed in metatable
+-- @local
+-- @tab metatable Metatable that has been passed through @{kobject.mt}
+-- @param ... KObject constructor arguments
+-- @treturn KObject A new KObject
 function kobject.new(metatable, ...)
 	local o = setmetatable({}, metatable)
 	objects[o] = {
@@ -193,6 +224,14 @@ local function checkObject(argn, obj)
 	end
 end
 
+--- Clones a KObject with an optional new metatable and arguments.
+--- This clones by making a new object with the same underlying data reference.
+--- Cloned KObjects will compare as equal with eachother.
+-- @local
+-- @tparam KObject other The object to clone
+-- @tab[opt] metatable Metatable, will use old one if nil.
+-- @param ... KObject clone constructor arguments
+-- @treturn KObject A clone of the other KObject
 function kobject.clone(other, metatable, ...)
 	checkObject(1, other)
 	
@@ -219,13 +258,22 @@ function kobject.clone(other, metatable, ...)
 	return o
 end
 
---Creates a new identity
+--- Creates a new identity for an existing object.
+---
+--- Identities allow specific cloned instances to identify themselves against other clones.
+-- @local
+-- @tparam KObject obj Object to diverge the identity of
+-- @todo Use XORShift to generate identities instead of using tables
 function kobject.divergeIdentity(obj)
 	checkObject(1, obj)
 	
 	objects[obj].identity = {}
 end
 
+--- Set the label of a KObject
+-- @tparam KObject obj Object to set the label of
+-- @string label The new label to set
+-- @todo Compare the creator field with the current process when deciding on changing the label, and factor in trustedness
 function kobject.setLabel(obj, label)
 	checkObject(1, obj)
 	checkArg(2, label, "string")
@@ -233,12 +281,19 @@ function kobject.setLabel(obj, label)
 	objects[obj].data.label = label
 end
 
+--- Get the label of a KObject
+-- @tparam KObject obj Object to get the label of
+-- @treturn string Object label
 function kobject.getLabel(obj)
 	checkObject(1, obj)
 	
 	return objects[obj].data.label
 end
 
+--- Sets the ownership of a KObject
+-- @local
+-- @tparam KObject obj Object to set the ownership of
+-- @int[opt] pid Process to set the ownership to, or the current process
 function kobject.own(obj, pid)
 	checkObject(1, obj)
 	
@@ -251,12 +306,20 @@ function kobject.own(obj, pid)
 	end
 end
 
+--- Removes ownership from a KObject
+-- @local
+-- @tparam KObject obj Object to remove the ownership from
 function kobject.disown(obj)
 	checkObject(1, obj)
 	
 	objects[obj].owner = nil
 end
 
+--- Compares the owners of two KObjects
+-- @local
+-- @tparam KObject a The first object to test
+-- @tparam KObject b The second object to test
+-- @treturn boolean Whether the object have the same owner
 function kobject.hasSameOwners(a, b)
 	checkObject(1, a)
 	checkObject(2, b)
@@ -264,17 +327,28 @@ function kobject.hasSameOwners(a, b)
 	return objects[a].owner == objects[b].owner
 end
 
+--- Compares the owner of a KObject with the current running process
+-- @local
+-- @tparam KObject obj The object to test
+-- @treturn boolean Whether the system is running under the same process that owns the KObject
 function kobject.inOwnerProcess(obj)
 	checkObject(1, obj)
 	
 	return proc.getCurrentProcess() == objects[obj].owner
 end
 
+--- Gets the process that created a KObject
+-- @tparam KObject obj Object to get the creator from
+-- @treturn int The process that created the object
 function kobject.getCreator(obj)
 	checkObject(1, obj)
 	return objects[obj].data.creator
 end
 
+--- Deletes a KObject by removing it's attachment to it's data.
+--- This method also calls the KObject's deconstructor.
+--- Calling this method is not required. Garbage Collection also calls this.
+-- @tparam KObject obj Object to delete
 function kobject.delete(obj)
 	--os.logf("KOBJECT", "Deleting %s owned by %d", tostring(obj), objects[obj].owner)
 	checkObject(1, obj)
@@ -287,6 +361,9 @@ function kobject.delete(obj)
 	objects[obj] = nil
 end
 
+--- Deletes all objects owned by a specific process
+-- @local
+-- @int pid Process to delete all the objects of
 function kobject.deleteProcessObjects(pid)
 	checkArg(1, pid, "number")
 	
@@ -297,6 +374,10 @@ function kobject.deleteProcessObjects(pid)
 	end
 end
 
+--- Counts all objects owned by a specific process
+-- @local
+-- @int pid Process to count number of owned object
+-- @treturn int The number of KObjects owned by a specific process
 function kobject.countProcessObjects(pid)
 	checkArg(1, pid, "number")
 	
@@ -311,6 +392,10 @@ function kobject.countProcessObjects(pid)
 	return num
 end
 
+--- Count number of processes that own a KObject (by data)
+-- @local
+-- @tparam KObject object Object to count references of
+-- @treturn int The number of processes that own a reference to the KObject
 function kobject.countOwningProcesses(object)
 	checkObject(1, object)
 	
@@ -329,11 +414,19 @@ function kobject.countOwningProcesses(object)
 	return count
 end
 
+--- Utility method to call @{kobject.copy} for the owner of a specific object
+-- @local
+-- @tparam KObject obj Object owned by the copy target
+-- @param v Value to copy
+-- @return The value copied for the target process
 function kobject.copyFor(obj, v)
 	checkObject(1, obj)
 	return copy(v, objects[obj].owner)
 end
 
+--- Utility method to get all instances of a piece of data from a KObject
+-- @local
+-- @tparam KObject obj Object to get the instances of
 function kobject.instancesOf(obj)
 	checkObject(1, obj)
 	return dataToInstances[objects[obj].data]

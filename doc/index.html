@@ -1,0 +1,701 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>Reference</title>
+    <link rel="stylesheet" href="ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>Anix</h1>
+
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Functions">Functions</a></li>
+<li><a href="#Local_Functions">Local Functions</a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="$(kind=='Topics' and '' or 'nowrap'">
+  <li><strong>kobject</strong></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>kobject</code></h1>
+<p>Allows you to manage kernel side objects</p>
+<p></p>
+
+
+<h2><a href="#Functions">Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#isMarshallable">isMarshallable (v, hit)</a></td>
+	<td class="summary">Checks whether an object is marshallable</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#checkMarshallable">checkMarshallable (argn, val)</a></td>
+	<td class="summary">Checks if a value is marshallable (usually used when checking arguments).</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#setLabel">setLabel (obj, label)</a></td>
+	<td class="summary">Set the label of a KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#getLabel">getLabel (obj)</a></td>
+	<td class="summary">Get the label of a KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#getCreator">getCreator (obj)</a></td>
+	<td class="summary">Gets the process that created a KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#delete">delete (obj)</a></td>
+	<td class="summary">Deletes a KObject by removing it's attachment to it's data.</td>
+	</tr>
+</table>
+<h2><a href="#Local_Functions">Local Functions</a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#copy">copy (v, pid[, cache])</a></td>
+	<td class="summary">Copies a marshallable value from one process to another</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#mt">mt (m)</a></td>
+	<td class="summary">Creates a metatable for KObject types over an existing metatable.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#new">new (metatable, ...)</a></td>
+	<td class="summary">Creates a new unowned KObject from the passed in metatable</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#clone">clone (other[, metatable], ...)</a></td>
+	<td class="summary">Clones a KObject with an optional new metatable and arguments.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#divergeIdentity">divergeIdentity (obj)</a></td>
+	<td class="summary">Creates a new identity for an existing object.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#own">own (obj[, pid])</a></td>
+	<td class="summary">Sets the ownership of a KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#disown">disown (obj)</a></td>
+	<td class="summary">Removes ownership from a KObject</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#hasSameOwners">hasSameOwners (a, b)</a></td>
+	<td class="summary">Compares the owners of two KObjects</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#inOwnerProcess">inOwnerProcess (obj)</a></td>
+	<td class="summary">Compares the owner of a KObject with the current running process</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#deleteProcessObjects">deleteProcessObjects (pid)</a></td>
+	<td class="summary">Deletes all objects owned by a specific process</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#countProcessObjects">countProcessObjects (pid)</a></td>
+	<td class="summary">Counts all objects owned by a specific process</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#countOwningProcesses">countOwningProcesses (object)</a></td>
+	<td class="summary">Count number of processes that own a KObject (by data)</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#copyFor">copyFor (obj, v)</a></td>
+	<td class="summary">Utility method to call <a href="index.html#copy">kobject.copy</a> for the owner of a specific object</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#instancesOf">instancesOf (obj)</a></td>
+	<td class="summary">Utility method to get all instances of a piece of data from a KObject</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header "><a name="Functions"></a>Functions</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "isMarshallable"></a>
+    <strong>isMarshallable (v, hit)</strong>
+    </dt>
+    <dd>
+    Checks whether an object is marshallable
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">v</span>
+         The object to test
+        </li>
+        <li><span class="parameter">hit</span>
+         Table of values already tested
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+        <li>
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the passed object is marshallable or not</li>
+        <li>
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a> or <span class="type">nil</span></span>
+        Error Message if the object is not marshallable</li>
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "checkMarshallable"></a>
+    <strong>checkMarshallable (argn, val)</strong>
+    </dt>
+    <dd>
+    Checks if a value is marshallable (usually used when checking arguments).
+ It throws an error if the passed value is not marshallable in the format
+ "bad argument #<argn> (<value type> not marshallable: <why>)"
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">argn</span>
+            <span class="types"><span class="type">int</span></span>
+         The number for the argument it's checking, for formmating purposes
+        </li>
+        <li><span class="parameter">val</span>
+         The value to check
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "setLabel"></a>
+    <strong>setLabel (obj, label)</strong>
+    </dt>
+    <dd>
+    Set the label of a KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to set the label of
+        </li>
+        <li><span class="parameter">label</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         The new label to set
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "getLabel"></a>
+    <strong>getLabel (obj)</strong>
+    </dt>
+    <dd>
+    Get the label of a KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to get the label of
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+        Object label
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "getCreator"></a>
+    <strong>getCreator (obj)</strong>
+    </dt>
+    <dd>
+    Gets the process that created a KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to get the creator from
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        The process that created the object
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "delete"></a>
+    <strong>delete (obj)</strong>
+    </dt>
+    <dd>
+    Deletes a KObject by removing it's attachment to it's data.
+ This method also calls the KObject's deconstructor.
+ Calling this method is not required. Garbage Collection also calls this.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to delete
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+</dl>
+    <h2 class="section-header "><a name="Local_Functions"></a>Local Functions</h2>
+
+    <dl class="function">
+    <dt>
+    <a name = "copy"></a>
+    <strong>copy (v, pid[, cache])</strong>
+    </dt>
+    <dd>
+    Copies a marshallable value from one process to another
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">v</span>
+         Value to copy
+        </li>
+        <li><span class="parameter">pid</span>
+            <span class="types"><span class="type">int</span></span>
+         Process to copy the value for
+        </li>
+        <li><span class="parameter">cache</span>
+            <span class="types"><span class="type">tab</span></span>
+         Object cache
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        The value copied for the process given
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "mt"></a>
+    <strong>mt (m)</strong>
+    </dt>
+    <dd>
+    Creates a metatable for KObject types over an existing metatable.
+<p> The passed metatable must be in the format {__type = string, __index = table}
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">m</span>
+            <span class="types"><span class="type">tab</span></span>
+         The metatable to modify
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.5">table</a></span>
+        The modified metatable
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "new"></a>
+    <strong>new (metatable, ...)</strong>
+    </dt>
+    <dd>
+    Creates a new unowned KObject from the passed in metatable
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">metatable</span>
+            <span class="types"><span class="type">tab</span></span>
+         Metatable that has been passed through <a href="index.html#mt">kobject.mt</a>
+        </li>
+        <li><span class="parameter">...</span>
+         KObject constructor arguments
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">KObject</span></span>
+        A new KObject
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "clone"></a>
+    <strong>clone (other[, metatable], ...)</strong>
+    </dt>
+    <dd>
+    Clones a KObject with an optional new metatable and arguments.
+ This clones by making a new object with the same underlying data reference.
+ Cloned KObjects will compare as equal with eachother.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">other</span>
+            <span class="types"><span class="type">KObject</span></span>
+         The object to clone
+        </li>
+        <li><span class="parameter">metatable</span>
+            <span class="types"><span class="type">tab</span></span>
+         Metatable, will use old one if nil.
+         (<em>optional</em>)
+        </li>
+        <li><span class="parameter">...</span>
+         KObject clone constructor arguments
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">KObject</span></span>
+        A clone of the other KObject
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "divergeIdentity"></a>
+    <strong>divergeIdentity (obj)</strong>
+    </dt>
+    <dd>
+    Creates a new identity for an existing object.
+<p> Identities allow specific cloned instances to identify themselves against other clones.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to diverge the identity of
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "own"></a>
+    <strong>own (obj[, pid])</strong>
+    </dt>
+    <dd>
+    Sets the ownership of a KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to set the ownership of
+        </li>
+        <li><span class="parameter">pid</span>
+            <span class="types"><span class="type">int</span></span>
+         Process to set the ownership to, or the current process
+         (<em>optional</em>)
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "disown"></a>
+    <strong>disown (obj)</strong>
+    </dt>
+    <dd>
+    Removes ownership from a KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to remove the ownership from
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "hasSameOwners"></a>
+    <strong>hasSameOwners (a, b)</strong>
+    </dt>
+    <dd>
+    Compares the owners of two KObjects
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">a</span>
+            <span class="types"><span class="type">KObject</span></span>
+         The first object to test
+        </li>
+        <li><span class="parameter">b</span>
+            <span class="types"><span class="type">KObject</span></span>
+         The second object to test
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the object have the same owner
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "inOwnerProcess"></a>
+    <strong>inOwnerProcess (obj)</strong>
+    </dt>
+    <dd>
+    Compares the owner of a KObject with the current running process
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         The object to test
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the system is running under the same process that owns the KObject
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "deleteProcessObjects"></a>
+    <strong>deleteProcessObjects (pid)</strong>
+    </dt>
+    <dd>
+    Deletes all objects owned by a specific process
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">pid</span>
+            <span class="types"><span class="type">int</span></span>
+         Process to delete all the objects of
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "countProcessObjects"></a>
+    <strong>countProcessObjects (pid)</strong>
+    </dt>
+    <dd>
+    Counts all objects owned by a specific process
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">pid</span>
+            <span class="types"><span class="type">int</span></span>
+         Process to count number of owned object
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        The number of KObjects owned by a specific process
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "countOwningProcesses"></a>
+    <strong>countOwningProcesses (object)</strong>
+    </dt>
+    <dd>
+    Count number of processes that own a KObject (by data)
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">object</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to count references of
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">int</span></span>
+        The number of processes that own a reference to the KObject
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "copyFor"></a>
+    <strong>copyFor (obj, v)</strong>
+    </dt>
+    <dd>
+    Utility method to call <a href="index.html#copy">kobject.copy</a> for the owner of a specific object
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object owned by the copy target
+        </li>
+        <li><span class="parameter">v</span>
+         Value to copy
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+        The value copied for the target process
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "instancesOf"></a>
+    <strong>instancesOf (obj)</strong>
+    </dt>
+    <dd>
+    Utility method to get all instances of a piece of data from a KObject
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">obj</span>
+            <span class="types"><span class="type">KObject</span></span>
+         Object to get the instances of
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.3</a></i>
+<i style="float:right;">Last updated 2016-01-23 11:27:22 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>

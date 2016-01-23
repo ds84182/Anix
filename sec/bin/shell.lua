@@ -120,6 +120,7 @@ while true do
 	io.write "> "
 	local line = await(term.read())
 	print()
+	yield() --let the screen flush
 	
 	local list = split(line, " ")
 	local commandName = table.remove(list, 1)

@@ -1,8 +1,13 @@
+------------
+-- Allows you to communicate asynchronously with other processes
+-- @module kstream
+
 local objects = kobject.objects
 
---TODO: Add onListen and onClose callback to WriteStream
-
 --Kernel streams--
+
+--- ReadStreams are attached to WriteStreams.
+-- @type ReadStream
 local ReadStream = kobject.mt {
 	__index = {
 		--async = true, --Async objects need update() to be called every now and then
@@ -15,6 +20,10 @@ local ReadStream = kobject.mt {
 
 --TODO: Maybe move init, notify, and delete to the metatable?
 --TODO: Add WriteStream:newReadStream() to create non clone version of a readstream
+
+--- Initializes a ReadStream object.
+-- @local
+-- @function ReadStream:init
 function ReadStream.__index:init()
 	kobject.checkType(self, ReadStream)
 	
@@ -34,6 +43,12 @@ function ReadStream.__index:init()
 	}
 end
 
+--- Initializes a ReadStream object after being cloned.
+--- This method will move a ReadStream unless init is true.
+-- @local
+-- @function ReadStream:initClone
+-- @tparam ReadStream other ReadStream being cloned from
+-- @bool init Whether the stream should be unique or not
 function ReadStream.__index:initClone(other, init)
 	kobject.checkType(self, ReadStream)
 	
@@ -55,12 +70,18 @@ function ReadStream.__index:initClone(other, init)
 	end
 end
 
+--- Duplicates a ReadStream to a new unique instance.
+-- @function ReadStream:duplicate
+-- @treturn ReadStream New duplicated ReadStream object
 function ReadStream.__index:duplicate()
 	kobject.checkType(self, ReadStream)
 	
 	return kobject.clone(self, ReadStream, true)
 end
 
+--- Returns whether the ReadStream has been used or not.
+-- @function ReadStream:isActive
+-- @treturn boolean Whether the ReadStream has been used or not
 function ReadStream.__index:isActive()
 	kobject.checkType(self, ReadStream)
 	
@@ -72,6 +93,11 @@ function ReadStream.__index:isActive()
 	return stream.callback ~= nil
 end
 
+--- Listens to all event coming to a ReadStream with a callback.
+--- The callback is executed in a new thread in the context of the process that owns this object.
+-- @function ReadStream:listen
+-- @func callback Callback function that gets executed for every data item received
+-- @treturn ReadStream The ReadStream, used for function chaining
 function ReadStream.__index:listen(callback)
 	kobject.checkType(self, ReadStream)
 	checkArg(1, callback, "function")
@@ -93,6 +119,11 @@ function ReadStream.__index:listen(callback)
 	return self
 end
 
+--- Allows the ReadStream to handle closure events.
+--- The callback is called when the WriteStream is closed and when this ReadStream is explicitly closed.
+-- @function ReadStream:onClose
+-- @func callback The callback that is called in a new thread when the ReadStream is closed.
+-- @treturn ReadStream The ReadStream, used for function chaining
 function ReadStream.__index:onClose(callback)
 	kobject.checkType(self, ReadStream)
 	checkArg(1, callback, "function")
@@ -112,6 +143,9 @@ function ReadStream.__index:onClose(callback)
 	return self
 end
 
+--- Whether the ReadStream is closed or not.
+-- @function ReadStream:isClosed
+-- @treturn boolean Whether the ReadStream has been closed or not
 function ReadStream.__index:isClosed()
 	kobject.checkType(self, ReadStream)
 	local o = objects[self]
@@ -120,6 +154,8 @@ function ReadStream.__index:isClosed()
 	return data.readStreams[identity] == nil
 end
 
+--- Closes the ReadStream.
+-- @function ReadStream:close
 function ReadStream.__index:close()
 	kobject.checkType(self, ReadStream)
 	
@@ -153,24 +189,37 @@ function ReadStream.__index:close()
 	end]]
 end
 
+--- Deletes the ReadStream. This also closes the ReadStream.
+-- @function ReadStream:delete
 function ReadStream.__index:delete()
 	kobject.checkType(self, ReadStream)
 	
 	self:close()
 end
 
+--TODO: Remove mailbox crap maybe? Or make it so that :notify does mailbox stuff
+
+--- Sends a notification to the ReadStream.
+-- @local
+-- @function ReadStream:notify
 function ReadStream.__index:notify()
 	kobject.checkType(self, ReadStream)
 	
 	kobject.notify(self)
 end
 
-function ReadStream.__index:onNotification(val)
+--- Receives a notification and updates the ReadStream.
+-- @local
+-- @function ReadStream:onNotification
+function ReadStream.__index:onNotification()
 	kobject.checkType(self, ReadStream)
 	
 	self:update()
 end
 
+--- Updates the ReadStream by reading mailbox contents.
+-- @local
+-- @function ReadStream:update
 function ReadStream.__index:update()
 	kobject.checkType(self, ReadStream)
 	
@@ -203,7 +252,10 @@ end
 do
 	--High Order Function ReadStream API--
 	
-	--Creates a new stream from this stream that converts each message into zero or more messages
+	--- Creates a new stream from this stream that converts each message into zero or more messages.
+	-- @function ReadStream:expand
+	-- @func convert Converts one piece of input data into a table with multiple output values.
+	-- @treturn ReadStream The newly created ReadStream
 	function ReadStream.__index:expand(convert)
 		kobject.checkType(self, ReadStream)
 		checkArg(1, convert, "function")
@@ -231,7 +283,10 @@ do
 		return rs
 	end
 
-	--Creates a new stream that converts each message of this stream to a new value using the convert function
+	--- Creates a new stream that converts each message of this stream to a new value using the convert function.
+	-- @function ReadStream:map
+	-- @func convert Converts one piece of input data into another output value.
+	-- @treturn ReadStream The newly created ReadStream
 	function ReadStream.__index:map(convert)
 		kobject.checkType(self, ReadStream)
 		checkArg(1, convert, "function")
@@ -251,9 +306,14 @@ do
 		return rs
 	end
 	
-	--Creates a new stream that converts each message of this stream to a new value using the convert function
-	--nil values from convert are not sent. if you want this behavior, use :expand
-	--convert = function(hasData, data, source). hasData = false: source closing
+	--- Creates a new stream that converts each message of this stream to a new value using the convert function.
+	---
+	--- nil values from convert are not sent. if you want this to be an error, use @{ReadStream:expand}
+	---
+	--- convert = function(hasData, data, source). hasData = false: source closing
+	-- @function ReadStream:transform
+	-- @func convert Converts one piece of input data into zero or more pieces of output data.
+	-- @treturn ReadStream The newly created ReadStream
 	function ReadStream.__index:transform(convert)
 		kobject.checkType(self, ReadStream)
 		checkArg(1, convert, "function")
@@ -287,7 +347,10 @@ do
 		return rs
 	end
 
-	--Pipe the messages of this stream into a WriteStream
+	--- Pipe the messages of this stream into a WriteStream.
+	-- @function ReadStream:pipe
+	-- @tparam WriteStream WriteStream to pipe input into
+	-- @treturn Future Future that completes when the stream closes
 	function ReadStream.__index:pipe(ws)
 		kobject.checkType(self, ReadStream)
 		kobject.checkType(ws, WriteStream)
@@ -307,6 +370,9 @@ do
 		return future
 	end
 	
+	--- Converts all the data from the ReadStream into a list.
+	-- @function ReadStream:toList
+	-- @treturn Future Future that completes with the list when the ReadStream closes.
 	function ReadStream.__index:toList()
 		local list = {}
 		
@@ -323,13 +389,20 @@ do
 		return future
 	end
 	
-	--Joins them... duh
+	--- Joins stream items together with an optional delimeter after it closes. Uses table.concat.
+	-- @function ReadStream:join
+	-- @string delim Delimeter to join the data together with.
+	-- @treturn Future Future that completes with the joined data.
 	function ReadStream.__index:join(delim)
 		return self:toList():after(function(list)
 			return table.concat(list, delim)
 		end)
 	end
 	
+	--- Omits items from a ReadStream if they do not belong.
+	-- @function ReadStream:where
+	-- @func test Tests to see if a piece of data should be sent or not.
+	-- @treturn ReadStream The newly created ReadStream
 	function ReadStream.__index:where(test)
 		kobject.checkType(self, ReadStream)
 		checkArg(1, test, "function")
@@ -351,6 +424,9 @@ do
 		return rs
 	end
 	
+	--- Gets a single value from the ReadStream then closes it.
+	-- @function ReadStream:single
+	-- @treturn Future Future that completes with a value or an error if the stream closes
 	function ReadStream.__index:single()
 		kobject.checkType(self, ReadStream)
 		
@@ -370,6 +446,10 @@ do
 		return future
 	end
 	
+	--- Gets only cnt values from the ReadStream then closes it.
+	-- @function ReadStream:count
+	-- @int cnt Number of values to get.
+	-- @treturn ReadStream The newly created ReadStream
 	function ReadStream.__index:count(cnt)
 		kobject.checkType(self, ReadStream)
 		
@@ -394,13 +474,17 @@ do
 		return rs
 	end
 	
-	function ReadStream.__index:firstWhere(compare)
+	--- Gets a single value from the ReadStream that matches test then closes it.
+	-- @function ReadStream:single
+	-- @func test Tests to see if a piece of data should be sent or not.
+	-- @treturn Future Future that completes with a value or an error if the stream closes
+	function ReadStream.__index:firstWhere(test)
 		kobject.checkType(self, ReadStream)
 		
 		local completer, future = kobject.newFuture()
 		
 		self:listen(function(data)
-			if compare(data) then
+			if test(data) then
 				completer:complete(data)
 				self:close()
 			end

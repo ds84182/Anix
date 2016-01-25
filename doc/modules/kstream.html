@@ -1,0 +1,534 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN"
+   "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+<head>
+    <title>Reference</title>
+    <link rel="stylesheet" href="../ldoc.css" type="text/css" />
+</head>
+<body>
+
+<div id="container">
+
+<div id="product">
+	<div id="product_logo"></div>
+	<div id="product_name"><big><b></b></big></div>
+	<div id="product_description"></div>
+</div> <!-- id="product" -->
+
+
+<div id="main">
+
+
+<!-- Menu -->
+
+<div id="navigation">
+<br/>
+<h1>Anix</h1>
+
+<ul>
+  <li><a href="../index.html">Index</a></li>
+</ul>
+
+<h2>Contents</h2>
+<ul>
+<li><a href="#Class_ReadStream">Class ReadStream </a></li>
+</ul>
+
+
+<h2>Modules</h2>
+<ul class="$(kind=='Topics' and '' or 'nowrap'">
+  <li><a href="../modules/kobject.html">kobject</a></li>
+  <li><strong>kstream</strong></li>
+</ul>
+
+</div>
+
+<div id="content">
+
+<h1>Module <code>kstream</code></h1>
+<p>Allows you to communicate asynchronously with other processes</p>
+<p></p>
+
+
+<h2><a href="#Class_ReadStream">Class ReadStream </a></h2>
+<table class="function_list">
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:init">ReadStream:init ()</a></td>
+	<td class="summary">Initializes a ReadStream object.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:initClone">ReadStream:initClone (other, init)</a></td>
+	<td class="summary">Initializes a ReadStream object after being cloned.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:duplicate">ReadStream:duplicate ()</a></td>
+	<td class="summary">Duplicates a ReadStream to a new unique instance.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:isActive">ReadStream:isActive ()</a></td>
+	<td class="summary">Returns whether the ReadStream has been used or not.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:listen">ReadStream:listen (callback)</a></td>
+	<td class="summary">Listens to all event coming to a ReadStream with a callback.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:onClose">ReadStream:onClose (callback)</a></td>
+	<td class="summary">Allows the ReadStream to handle closure events.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:isClosed">ReadStream:isClosed ()</a></td>
+	<td class="summary">Whether the ReadStream is closed or not.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:close">ReadStream:close ()</a></td>
+	<td class="summary">Closes the ReadStream.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:delete">ReadStream:delete ()</a></td>
+	<td class="summary">Deletes the ReadStream.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:notify">ReadStream:notify ()</a></td>
+	<td class="summary">Sends a notification to the ReadStream.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:onNotification">ReadStream:onNotification ()</a></td>
+	<td class="summary">Receives a notification and updates the ReadStream.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:update">ReadStream:update ()</a></td>
+	<td class="summary">Updates the ReadStream by reading mailbox contents.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:expand">ReadStream:expand (convert)</a></td>
+	<td class="summary">Creates a new stream from this stream that converts each message into zero or more messages.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:map">ReadStream:map (convert)</a></td>
+	<td class="summary">Creates a new stream that converts each message of this stream to a new value using the convert function.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:transform">ReadStream:transform (convert)</a></td>
+	<td class="summary">Creates a new stream that converts each message of this stream to a new value using the convert function.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:pipe">ReadStream:pipe (WriteStream)</a></td>
+	<td class="summary">Pipe the messages of this stream into a WriteStream.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:toList">ReadStream:toList ()</a></td>
+	<td class="summary">Converts all the data from the ReadStream into a list.</td>
+	</tr>
+	<tr>
+	<td class="name" nowrap><a href="#ReadStream:join">ReadStream:join (delim)</a></td>
+	<td class="summary">Joins stream items together with an optional delimeter after it closes.</td>
+	</tr>
+</table>
+
+<br/>
+<br/>
+
+
+    <h2 class="section-header has-description"><a name="Class_ReadStream"></a>Class ReadStream </h2>
+
+          <div class="section-description">
+          ReadStreams are attached to WriteStreams.
+          </div>
+    <dl class="function">
+    <dt>
+    <a name = "ReadStream:init"></a>
+    <strong>ReadStream:init ()</strong>
+    </dt>
+    <dd>
+    Initializes a ReadStream object.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:initClone"></a>
+    <strong>ReadStream:initClone (other, init)</strong>
+    </dt>
+    <dd>
+    Initializes a ReadStream object after being cloned.
+ This method will move a ReadStream unless init is true.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">other</span>
+            <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+         ReadStream being cloned from
+        </li>
+        <li><span class="parameter">init</span>
+            <span class="types"><span class="type">bool</span></span>
+         Whether the stream should be unique or not
+        </li>
+    </ul>
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:duplicate"></a>
+    <strong>ReadStream:duplicate ()</strong>
+    </dt>
+    <dd>
+    Duplicates a ReadStream to a new unique instance.
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+        New duplicated ReadStream object
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:isActive"></a>
+    <strong>ReadStream:isActive ()</strong>
+    </dt>
+    <dd>
+    Returns whether the ReadStream has been used or not.
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the ReadStream has been used or not
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:listen"></a>
+    <strong>ReadStream:listen (callback)</strong>
+    </dt>
+    <dd>
+    Listens to all event coming to a ReadStream with a callback.
+ The callback is executed in a new thread in the context of the process that owns this object.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">callback</span>
+            <span class="types"><span class="type">func</span></span>
+         Callback function that gets executed for every data item received
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+        The ReadStream, used for function chaining
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:onClose"></a>
+    <strong>ReadStream:onClose (callback)</strong>
+    </dt>
+    <dd>
+    Allows the ReadStream to handle closure events.
+ The callback is called when the WriteStream is closed and when this ReadStream is explicitly closed.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">callback</span>
+            <span class="types"><span class="type">func</span></span>
+         The callback that is called in a new thread when the ReadStream is closed.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+        The ReadStream, used for function chaining
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:isClosed"></a>
+    <strong>ReadStream:isClosed ()</strong>
+    </dt>
+    <dd>
+    Whether the ReadStream is closed or not.
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">boolean</span></span>
+        Whether the ReadStream has been closed or not
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:close"></a>
+    <strong>ReadStream:close ()</strong>
+    </dt>
+    <dd>
+    Closes the ReadStream.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:delete"></a>
+    <strong>ReadStream:delete ()</strong>
+    </dt>
+    <dd>
+    Deletes the ReadStream.  This also closes the ReadStream.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:notify"></a>
+    <strong>ReadStream:notify ()</strong>
+    </dt>
+    <dd>
+    Sends a notification to the ReadStream.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:onNotification"></a>
+    <strong>ReadStream:onNotification ()</strong>
+    </dt>
+    <dd>
+    Receives a notification and updates the ReadStream.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:update"></a>
+    <strong>ReadStream:update ()</strong>
+    </dt>
+    <dd>
+    Updates the ReadStream by reading mailbox contents.
+
+
+
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:expand"></a>
+    <strong>ReadStream:expand (convert)</strong>
+    </dt>
+    <dd>
+    Creates a new stream from this stream that converts each message into zero or more messages.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">convert</span>
+            <span class="types"><span class="type">func</span></span>
+         Converts one piece of input data into a table with multiple output values.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+        The newly created ReadStream
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:map"></a>
+    <strong>ReadStream:map (convert)</strong>
+    </dt>
+    <dd>
+    Creates a new stream that converts each message of this stream to a new value using the convert function.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">convert</span>
+            <span class="types"><span class="type">func</span></span>
+         Converts one piece of input data into another output value.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+        The newly created ReadStream
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:transform"></a>
+    <strong>ReadStream:transform (convert)</strong>
+    </dt>
+    <dd>
+    Creates a new stream that converts each message of this stream to a new value using the convert function.
+<p> nil values from convert are not sent. if you want this to be an error, use <a href="../modules/kstream.html#ReadStream:expand">ReadStream:expand</a>
+<p> convert = function(hasData, data, source). hasData = false: source closing
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">convert</span>
+            <span class="types"><span class="type">func</span></span>
+         Converts one piece of input data into zero or more pieces of output data.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><a class="type" href="../modules/kstream.html#ReadStream">ReadStream</a></span>
+        The newly created ReadStream
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:pipe"></a>
+    <strong>ReadStream:pipe (WriteStream)</strong>
+    </dt>
+    <dd>
+    Pipe the messages of this stream into a WriteStream.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">WriteStream</span>
+            <span class="types"><span class="type">WriteStream</span></span>
+         to pipe input into
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">Future</span></span>
+        Future that completes when the stream closes
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:toList"></a>
+    <strong>ReadStream:toList ()</strong>
+    </dt>
+    <dd>
+    Converts all the data from the ReadStream into a list.
+
+
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">Future</span></span>
+        Future that completes with the list when the ReadStream closes.
+    </ol>
+
+
+
+
+</dd>
+    <dt>
+    <a name = "ReadStream:join"></a>
+    <strong>ReadStream:join (delim)</strong>
+    </dt>
+    <dd>
+    Joins stream items together with an optional delimeter after it closes.  Uses table.concat.
+
+
+    <h3>Parameters:</h3>
+    <ul>
+        <li><span class="parameter">delim</span>
+            <span class="types"><a class="type" href="http://www.lua.org/manual/5.1/manual.html#5.4">string</a></span>
+         Delimeter to join the data together with.
+        </li>
+    </ul>
+
+    <h3>Returns:</h3>
+    <ol>
+
+           <span class="types"><span class="type">Future</span></span>
+        Future that completes with the joined data.
+    </ol>
+
+
+
+
+</dd>
+</dl>
+
+
+</div> <!-- id="content" -->
+</div> <!-- id="main" -->
+<div id="about">
+<i>generated by <a href="http://github.com/stevedonovan/LDoc">LDoc 1.4.3</a></i>
+<i style="float:right;">Last updated 2016-01-23 20:15:18 </i>
+</div> <!-- id="about" -->
+</div> <!-- id="container" -->
+</body>
+</html>

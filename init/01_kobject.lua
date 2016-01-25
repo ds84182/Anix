@@ -481,8 +481,8 @@ function kobject.isValid(obj)
 	return true
 end
 
---- Queries whether an object is a valid kernel object, and if is subclasses a specific class.
--- @tparam KObject obj Object to query
+--- Tests whether an object is a valid kernel object, and if is subclasses a specific class.
+-- @tparam KObject obj Object to test
 -- @tparam string|table mt Class name or metatable to test with
 -- @treturn boolean Whether the object is valid and subclasses the specified class
 function kobject.isA(obj, mt)
@@ -497,6 +497,9 @@ function kobject.isA(obj, mt)
 	end
 end
 
+--- Throws an error if kobject.isA fails
+-- @tparam Kobject obj Object to test
+-- @tparam string|table mt Class name or metatable to test with
 function kobject.checkType(obj, mt)
 	if not kobject.isA(obj, mt) then
 		if objects[obj] then
@@ -507,8 +510,12 @@ function kobject.checkType(obj, mt)
 	end
 end
 
-local notificationList = {}
+--local notificationList = {}
 
+--- Calls :onNotification on the given KObject after copying val for it.
+-- @local
+-- @tparam KObject obj Object to notify
+-- @param val Value to notify with
 function kobject.notify(obj, val)
 	--objects can only be notified once per kobject.update
 	--if you need multiple notifications, send one notify and push messages into a mailbox

@@ -27,6 +27,15 @@ function Future.__index:init()
 	}
 end
 
+function Future.__index:delete()
+	kobject.checkType(self, Future)
+	
+	local data = objects[self].data
+	
+	--remove future from list
+	data.future = nil
+end
+
 function Future.__index:after(callback, errorHandler)
 	kobject.checkType(self, Future)
 	checkArg(1, callback, "function")
@@ -39,10 +48,12 @@ function Future.__index:after(callback, errorHandler)
 		data.future.callback = function(...)
 			local t = table.pack(xpcall(callback, debug.traceback, ...))
 			
-			if t[1] then
-				completer:complete(table.unpack(t, 2, t.n))
-			else
-				completer:error(t[2])
+			if kobject.isValid(completer) then --if the completer is still valid
+				if t[1] then
+					completer:complete(table.unpack(t, 2, t.n))
+				else
+					completer:error(t[2])
+				end
 			end
 		end
 		data.future.errorHandler = errorHandler
@@ -82,7 +93,9 @@ function Future.__index:onNotification(d)
 		
 		--os.logf("KFUTURE", "%s completed %d", self, objects[self].owner)
 		data.future = nil
-		kobject.delete(self)
+		if kobject.isValid(self) then --dont delete if the object is not valid
+			kobject.delete(self)
+		end
 	end
 end
 
@@ -103,11 +116,16 @@ function Completer.__index:complete(...)
 	local data = objects[self].data
 	if data.future then
 		data.future.object:notify(message)
-		kobject.delete(self)
+		
+		if kobject.isValid(self) then --dont delete if the object is not valid
+			kobject.delete(self)
+		end
 		return true
 	end
 	
-	object.delete(self)
+	if kobject.isValid(self) then
+		kobject.delete(self)
+	end
 	
 	return false, "endpoint not connected"
 end
@@ -119,11 +137,15 @@ function Completer.__index:error(message)
 	if data.future then
 		os.log("KFUTURE", message)
 		data.future.object:notify({type = "error", message})
-		kobject.delete(self)
+		if kobject.isValid(self) then --dont delete if the object is not valid
+			kobject.delete(self)
+		end
 		return true
 	end
 	
-	object.delete(self)
+	if kobject.isValid(self) then
+		kobject.delete(self)
+	end
 	
 	return false, "endpoint not connected"
 end

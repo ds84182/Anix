@@ -2,4 +2,4 @@
 # a line beginning with # denotes a comment
 /sec/bin/terminal.lua
 /sec/bin/inet.lua
-/sec/bin/shell.lua
+/usr/bin/shell.lua untrusted

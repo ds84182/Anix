@@ -93,7 +93,7 @@ function shellFunc.set(what, a, b, c)
 end
 
 if not proc.getEnv("PATH") then
-	proc.setEnv("PATH", "/sec/bin/?;/sec/bin/?.lua;./?;./?.lua")
+	proc.setEnv("PATH", "/sec/bin/?;/sec/bin/?.lua;/usr/bin/?;/usr/bin/?.lua;./?;./?.lua")
 end
 
 local function split(line, pattern)

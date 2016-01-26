@@ -89,7 +89,11 @@ do
 	
 	--Process API--
 	
-	function zeroapi.proc_spawn(pid, source, name, args, env)
+	function zeroapi.proc_spawn(pid, source, name, args, env, options)
+		if not zeroapi.perm_query(pid, pid, "proc.spawn", true) then
+			return nil, "Permission Denied"
+		end
+		
 		env = env or {}
 		
 		if not env.API then
@@ -100,7 +104,7 @@ do
 		
 		if spawnPID then
 			for _, func in pairs(processSpawnHandlers) do
-				func(spawnPID, pid)
+				func(spawnPID, pid, options)
 			end
 		end
 		

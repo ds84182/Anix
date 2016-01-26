@@ -123,6 +123,8 @@ local function resume(thread, ...)
 		
 		if not thread.peaceful then
 			os.logf("PROC", "Process \"%s\" (%d) Thread \"%s\" (%d) has ended %s: %s", processes[thread.process].name, thread.process, thread.name, thread.id, thread.peaceful and "peacefully" or "violently", thread.error)
+			--TODO: If a thread dies this way, should we kill the process?
+			proc.kill(thread.process, {peaceful = false, error = thread.error})
 		end
 		
 		return
@@ -229,9 +231,12 @@ function proc.resumeThread(id)
 	handleThread(id, threads[id])
 end
 
-function proc.run(callback, signalStream)
+local signalStream
+
+function proc.run(callback, ss)
 	os.log("PROC", "Process Space started")
 	proc.run = nil
+	signalStream = ss
 	--enter a loop that runs processes--
 	local minWait
 	while true do
@@ -295,6 +300,22 @@ function proc.run(callback, signalStream)
 		
 		callback(pps, minWait)
 	end
+end
+
+function proc.kill(pid, reason)
+	local process = processes[pid]
+	
+	os.logf("PROC", "Killing process %s (%d)", process.name, pid)
+	kobject.deleteProcessObjects(pid)
+	proc.reparentChildren(pid)
+	--kill threads
+	for id, thread in pairs(threads) do
+		if thread.process == pid and not thread.error then
+			thread.peaceful = false
+			thread.error = "process killed"
+		end
+	end
+	signalStream:send({"process_death", pid, process.parent, reason})
 end
 
 function proc.suspendThread()

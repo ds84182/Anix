@@ -154,7 +154,7 @@ local function getGroupsFromTarget(target)
 	end
 end
 
-function zeroapi.perm_query(pid, target, perm)
+function zeroapi.perm_query(pid, target, perm, default)
 	checkArg(1, target, "string", "number")
 	checkArg(2, perm, "string")
 	
@@ -233,7 +233,7 @@ function zeroapi.perm_query(pid, target, perm)
 			end
 		end
 		
-		return nil, "undefined"
+		return default, "undefined"
 	end
 end
 

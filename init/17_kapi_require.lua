@@ -2,7 +2,7 @@ function kapi.patches.require(env, pid, trustLevel)
 	if pid > 0 then
 		env.package = {
 			loaded = {filesystem = env.fs},
-			path = "/sec/lib/?.lua;/sec/lib/?/init.lua;./?.lua;./?/init.lua"
+			path = "/sec/lib/?.lua;/sec/lib/?/init.lua;/usr/lib/?.lua;/usr/lib/?/init.lua;./?.lua;./?/init.lua"
 		}
 		
 		env.require = function(name)

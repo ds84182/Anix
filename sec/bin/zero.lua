@@ -30,6 +30,8 @@ end
 
 kernelSignalStream:listen(zero.handleSignal)
 
+local bootfs = component.proxy(computer.getBootAddress())
+
 do
 	--ZeroAPI--
 	zeroapi = {}
@@ -65,94 +67,23 @@ do
 		return processStreams[pid]:duplicate()
 	end
 	
-	--Service API--
+	-- "dynamic" modules --
 	
-	local globalServices = {}
-	local localServices = {}
-	local awaitingProcesses = {}
-	
-	function zeroapi.service_get(pid, name)
-		local ls = localServices[pid]
-		if ls and ls[name] then
-			return ls[name]
+	local function loadMod(name)
+		os.log("ZERO", "Loading mod_"..name)
+		local fh = bootfs.open("sec/bin/zero/mod_"..name..".lua", "r")
+		local buffer = {}
+		while true do
+			local s = bootfs.read(fh, math.huge)
+			if not s then break end
+			buffer[#buffer+1] = s
 		end
+		bootfs.close(fh)
 		
-		if pid >= 0 then
-			--service get through parent local services--
-			local service = zeroapi.service_get(proc.getParentProcess(pid), name)
-			if service then return service end
-		end
-		
-		if globalServices[name] then
-			return globalServices[name]
-		end
+		assert(load(table.concat(buffer)))(zeroapi, processCleanupHandlers)
 	end
 	
-	function zeroapi.service_list(pid, mode)
-		local list = {}
-		
-		mode = mode or "both"
-		
-		if mode ~= "global" then
-			local cpid = pid
-			while cpid >= 0 do
-				local ls = localServices[cpid]
-				if ls then
-					for name in pairs(ls) do
-						list[#list+1] = name
-					end
-				end
-				cpid = proc.getParentProcess(cpid)
-			end
-		end
-		
-		if mode ~= "local" then
-			for name in pairs(globalServices) do
-				list[#list+1] = name
-			end
-		end
-		
-		return list
-	end
-	
-	function zeroapi.service_registerlocal(pid, name, ko)
-		localServices[pid] = localServices[pid] or {}
-		localServices[pid][name] = ko
-	end
-	
-	function zeroapi.service_registerglobal(pid, name, ko)
-		if proc.getTrustLevel(pid) <= 1000 then
-			globalServices[name] = ko
-			os.logf("ZERO", "Added global service %s (%s)", name, tostring(ko))
-			return true
-		else
-			return false, "process not trusted"
-		end
-	end
-	
-	function zeroapi.service_await(pid, name)
-		local completer, future = kobject.newFuture()
-		
-		awaitingProcesses[pid] = true
-		
-		proc.createThread(function()
-			while awaitingProcesses[pid] do
-				local svc = zeroapi.service_get(pid, name)
-				if svc then
-					completer:complete(svc)
-					break
-				end
-				yield()
-			end
-		end, "service_check_"..name.."_for_"..pid)
-		
-		return future
-	end
-	
-	function processCleanupHandlers.zeroapi(pid, ppid)
-		awaitingProcesses[pid] = nil
-		localServices[pid] = nil
-	end
+	loadMod "service"
 	
 	--Process API--
 	
@@ -178,7 +109,6 @@ do
 end
 
 --start filesystem service--
-local bootfs = component.proxy(computer.getBootAddress())
 	
 if not bootfs.exists("sec/bin/filesystem.lua") then
 	os.log("ZERO", "Filesystem service not found in /sec/bin/filesystem.lua")

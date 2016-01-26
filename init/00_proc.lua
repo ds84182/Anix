@@ -81,6 +81,7 @@ function proc.spawn(source, name, args, vars, trustLevel, parent)
 		id = id,
 		parent = parent,
 		variables = kobject.copy(vars, id), --environmental variables
+		secureStorage = {} --secure process variables, like current user
 	}
 	processes[id] = object
 	
@@ -403,6 +404,18 @@ function proc.listEnv(env, pid)
 	return env
 end
 
+function proc.getSecureStorage(pid)
+	checkArg(2, pid, "number", "nil")
+	
+	pid = pid or proc.getCurrentProcess()
+	
+	if not proc.isTrusted() then
+		return nil, "Permission Denied"
+	end
+	
+	return processes[pid].secureStorage
+end
+
 function proc.getGlobals(pid)
 	checkArg(2, pid, "number", "nil")
 	
@@ -481,6 +494,7 @@ function proc.getProcessInfo(pid)
 	info.name = p.name
 	info.trustLevel = p.trustLevel
 	info.parent = p.parent
+	info.user = p.secureStorage.user
 	
 	info.kernelObjectCount = kobject.countProcessObjects(pid)
 	info.threadCount = 0

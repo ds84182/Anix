@@ -20,6 +20,12 @@ local function execute(path)
 		else
 			--TODO: We need Broadcast Streams!
 			await(deathStream:duplicate():firstWhere(function(sig)
+				local reason = sig[4]
+				
+				if not reason.peaceful then
+					print(reason.error)
+				end
+				
 				return sig[2] == pid
 			end))
 		end

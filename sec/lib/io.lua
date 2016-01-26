@@ -27,7 +27,7 @@ function io.init()
 		local rs, ws = kobject.newStream()
 		stdout = ws
 		rs:listen(function(lines)
-			lines = tostring(lines)
+			lines = tostring(lines):gsub("\t", "    ")
 			for line in lines:gmatch("[^\n]*\n?") do
 				if line:sub(-1,-1) == "\n" then
 					term.write(line:sub(1,-2))

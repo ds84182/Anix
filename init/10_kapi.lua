@@ -36,7 +36,12 @@ local apienv = {
 	},
 	os = {},
 	service = {},
-	perm = {}
+	perm = {},
+	load = function(source, name, mode, env)
+		env = env ~= nil and env or proc.getGlobals()
+		
+		return load(source, name, mode, env)
+	end
 }
 
 kapi.apienv = apienv

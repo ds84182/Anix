@@ -13,6 +13,7 @@ local kernelSignalStream = ...
 local signalStream, signalStreamOut = kobject.newStream()
 kobject.setLabel(signalStream, "Signal Stream")
 
+local processSpawnHandlers = {}
 local processCleanupHandlers = {}
 
 function zero.handleSignal(sig)
@@ -80,7 +81,7 @@ do
 		end
 		bootfs.close(fh)
 		
-		assert(load(table.concat(buffer)))(zeroapi, processCleanupHandlers)
+		assert(load(table.concat(buffer)))(zeroapi, processSpawnHandlers, processCleanupHandlers)
 	end
 	
 	loadMod "service"
@@ -94,7 +95,15 @@ do
 			env.API = zero.apiClient
 		end
 		
-		return proc.spawn(source, name, args, env, trustLevel, pid)
+		local spawnPID, err = proc.spawn(source, name, args, env, trustLevel, pid)
+		
+		if spawnPID then
+			for _, func in pairs(processSpawnHandlers) do
+				func(spawnPID, pid)
+			end
+		end
+		
+		return spawnPID, err
 	end
 	
 	--Export--

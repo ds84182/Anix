@@ -1,12 +1,14 @@
 --Service API--
 
-local zeroapi, processCleanupHandlers = ...
+local zeroapi, processSpawnHandlers, processCleanupHandlers = ...
 
 local globalServices = {}
 local localServices = {}
 local awaitingProcesses = {}
 
 function zeroapi.service_get(pid, name)
+	checkArg(1, name, "string")
+	
 	local ls = localServices[pid]
 	if ls and ls[name] then
 		return ls[name]
@@ -24,6 +26,8 @@ function zeroapi.service_get(pid, name)
 end
 
 function zeroapi.service_list(pid, mode)
+	checkArg(1, mode, "string", "nil")
+	
 	local list = {}
 	
 	mode = mode or "both"
@@ -51,11 +55,15 @@ function zeroapi.service_list(pid, mode)
 end
 
 function zeroapi.service_registerlocal(pid, name, ko)
+	checkArg(1, name, "string")
+	
 	localServices[pid] = localServices[pid] or {}
 	localServices[pid][name] = ko
 end
 
 function zeroapi.service_registerglobal(pid, name, ko)
+	checkArg(1, name, "string")
+	
 	if proc.getTrustLevel(pid) <= 1000 then
 		globalServices[name] = ko
 		os.logf("ZERO", "Added global service %s (%s)", name, tostring(ko))
@@ -66,6 +74,8 @@ function zeroapi.service_registerglobal(pid, name, ko)
 end
 
 function zeroapi.service_await(pid, name)
+	checkArg(1, name, "string")
+	
 	local completer, future = kobject.newFuture()
 	
 	awaitingProcesses[pid] = true

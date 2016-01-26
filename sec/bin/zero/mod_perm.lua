@@ -73,6 +73,13 @@ function processSpawnHandlers.perm(newPID, fromPID)
 	
 	newSS.user = oldSS.user or "root"
 	newSS.permissions = {}
+	
+	--inherit permissions from oldSS
+	if oldSS.permissions then
+		for i, v in pairs(oldSS.permissions) do
+			newSS.permissions[i] = v
+		end
+	end
 end
 
 local function parseTarget(target, cpid)
@@ -119,6 +126,8 @@ end
 local domainLevels = {process = 3, user = 2, group = 1}
 
 local function queryTable(tab, query)
+	if not tab then return nil end
+	
 	while true do
 		os.logf("PERM", "Query %s result: %s", query, tostring(tab[query]))
 		if tab[query] ~= nil then

@@ -368,7 +368,7 @@ function proc.getEnv(name, pid)
 		return nil, "Permission Denied"
 	end
 	
-	return processes[pid].variables[tostring(name)]
+	return kobject.copy(processes[pid].variables[name], proc.getCurrentProcess())
 end
 
 function proc.setEnv(name, value, pid)
@@ -384,7 +384,7 @@ function proc.setEnv(name, value, pid)
 	if not m then
 		error(("Environmental variable contains unmarshallable objects (%s)"):format(why))
 	end
-	processes[pid].variables[tostring(name)] = value
+	processes[pid].variables[tostring(name)] = kobject.copy(value, pid)
 end
 
 function proc.listEnv(env, pid)
@@ -398,13 +398,20 @@ function proc.listEnv(env, pid)
 	
 	env = env or {}
 	for name, value in pairs(processes[pid].variables) do
-		env[name] = value
+		env[name] = kobject.copy(value, proc.getCurrentProcess())
 	end
 	return env
 end
 
 function proc.getGlobals(pid)
+	checkArg(2, pid, "number", "nil")
+	
 	pid = pid or proc.getCurrentProcess()
+	
+	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
+		return nil, "Permission Denied"
+	end
+	
 	return processes[pid].globals
 end
 

@@ -85,6 +85,7 @@ do
 	end
 	
 	loadMod "service"
+	loadMod "perm"
 	
 	--Process API--
 	

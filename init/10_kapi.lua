@@ -23,6 +23,7 @@ local apienv = {
 		getEnv = proc.getEnv,
 		setEnv = proc.setEnv,
 		listEnv = proc.listEnv,
+		getSecureStorage = proc.getSecureStorage,
 		getTrustLevel = proc.getTrustLevel,
 		isTrusted = proc.isTrusted,
 		createThread = proc.createThread,
@@ -34,7 +35,8 @@ local apienv = {
 		end]]
 	},
 	os = {},
-	service = {}
+	service = {},
+	perm = {}
 }
 
 kapi.apienv = apienv

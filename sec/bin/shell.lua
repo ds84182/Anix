@@ -64,6 +64,29 @@ function shellFunc.get(what, a, b, c)
 		for _, name in pairs(list) do
 			print("  "..name)
 		end
+	elseif what == "perm" then
+		local target, p = a, b
+		local result, reason = await(perm.query(target, p))
+		print(tostring(result).." "..tostring(reason))
+	else
+		print("Unknown parameter "..what)
+	end
+end
+
+function shellFunc.set(what, a, b, c)
+	if what == "perm" then
+		local target, p, val = a, b, c
+		
+		if val == "true" then
+			val = true
+		elseif val == "false" then
+			val = false
+		else
+			val = nil
+		end
+		
+		local result, reason = await(perm.set(target, p, val))
+		print(tostring(result).." "..tostring(reason))
 	else
 		print("Unknown parameter "..what)
 	end

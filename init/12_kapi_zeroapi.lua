@@ -40,6 +40,10 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 		env.service.registerGlobal = rpcCall "service_registerglobal"
 		env.service.await = rpcCall "service_await"
 		
+		--permission API
+		env.perm.query = rpcCall "perm_query"
+		env.perm.set = rpcCall "perm_set"
+		
 		--process API extension: fills in environmental variable API if not defined
 		env.proc.spawn = rpcCall "proc_spawn"
 	end

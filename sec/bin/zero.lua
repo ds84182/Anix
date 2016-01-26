@@ -81,7 +81,7 @@ do
 		end
 		bootfs.close(fh)
 		
-		assert(load(table.concat(buffer)))(zeroapi, processSpawnHandlers, processCleanupHandlers)
+		assert(load(table.concat(buffer), "=mod_"..name))(zeroapi, processSpawnHandlers, processCleanupHandlers)
 	end
 	
 	loadMod "service"
@@ -89,7 +89,7 @@ do
 	
 	--Process API--
 	
-	function zeroapi.proc_spawn(pid, source, name, args, env, options)
+	function zeroapi.proc_spawn(pid, source, name, args, env, trustLevel, options)
 		if not zeroapi.perm_query(pid, pid, "proc.spawn", true) then
 			return nil, "Permission Denied"
 		end
@@ -117,7 +117,7 @@ do
 	for i, v in pairs(zeroapi) do functionList[i] = true end
 	
 	zero.apiExport, zero.apiClient = kobject.newExport(functionList, function(method, arguments, pid)
-		return zeroapi[method](pid, table.unpack(arguments))
+		return zeroapi[method](pid, table.unpack(arguments, 1, arguments.n))
 	end)
 	kobject.setLabel(zero.apiExport, "ZeroAPI")
 end

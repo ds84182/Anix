@@ -44,7 +44,7 @@ function proc.spawn(source, name, args, vars, trustLevel, parent)
 	trustLevel = trustLevel or proc.getTrustLevel(parent)+1
 	
 	local currentTrustLevel = proc.getTrustLevel(parent)
-	if currentTrustLevel > 1000 and trustLevel < currentTrustLevel then
+	if currentTrustLevel >= 1000 and trustLevel < currentTrustLevel then
 		error(("Given trust level (%d) is less than the current trust level (%d)."):format(trustLevel, currentTrustLevel))
 	end
 	
@@ -329,7 +329,7 @@ function proc.getTrustLevel(pid)
 end
 
 function proc.isTrusted(pid)
-	return proc.getTrustLevel(pid) <= 1000
+	return proc.getTrustLevel(pid) < 1000
 end
 
 function proc.getParentProcess(pid)
@@ -417,13 +417,7 @@ function proc.getSecureStorage(pid)
 end
 
 function proc.getGlobals(pid)
-	checkArg(2, pid, "number", "nil")
-	
 	pid = pid or proc.getCurrentProcess()
-	
-	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
-		return nil, "Permission Denied"
-	end
 	
 	return processes[pid].globals
 end

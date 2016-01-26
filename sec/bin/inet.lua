@@ -253,7 +253,7 @@ end)
 local inet = {}
 
 function inet.addInterface(pid, name, object)
-	if not proc.isTrusted(pid) then
+	if not perm.query(pid, "inet.modifyInterfaces", false) then
 		error("Permission Denied")
 	end
 	
@@ -265,7 +265,7 @@ function inet.addInterface(pid, name, object)
 end
 
 function inet.removeInterface(pid, name)
-	if not proc.isTrusted(pid) then
+	if not perm.query(pid, "inet.modifyInterfaces", false) then
 		error("Permission Denied")
 	end
 	
@@ -285,6 +285,10 @@ function inet.listInterfaces(pid)
 end
 
 function inet.request(pid, interface, url, data, headers)
+	if not perm.query(pid, "inet.request", true) then
+		error("Permission Denied")
+	end
+	
 	return await(request(interface, url, data, headers))
 end
 

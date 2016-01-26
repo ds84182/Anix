@@ -111,7 +111,7 @@ function Export.__index:update()
 				local ret = table.pack(pcall(data.handler, message.data.method, message.data.arguments, message.source))
 				
 				if ret[1] then
-					message.data.reply:complete(table.unpack(ret, 2))
+					message.data.reply:complete(table.unpack(ret, 2, ret.n))
 				else
 					message.data.reply:error(ret[2])
 				end

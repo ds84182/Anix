@@ -40,7 +40,7 @@ function Future.__index:after(callback, errorHandler)
 			local t = table.pack(xpcall(callback, debug.traceback, ...))
 			
 			if t[1] then
-				completer:complete(table.unpack(t, 2))
+				completer:complete(table.unpack(t, 2, t.n))
 			else
 				completer:error(t[2])
 			end
@@ -171,10 +171,12 @@ function CompletedFuture.__index:after(callback)
 		local t = table.pack(xpcall(callback, debug.traceback, ...))
 		
 		if t[1] then
-			completer:complete(table.unpack(t, 2))
+			completer:complete(table.unpack(t, 2, t.n))
 		else
 			completer:error(t[2])
 		end
+		
+		kobject.delete(self)
 	end, nil, data.value, objects[self].owner)
 	
 	return future

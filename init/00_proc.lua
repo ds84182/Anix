@@ -366,13 +366,9 @@ function proc.getProcessInfo(pid)
   info.user = p.secureStorage.user
 
   info.kernelObjectCount = kobject.countProcessObjects(pid)
-  info.threadCount = 0
-
-  for id, thread in pairs(threads) do
-    if thread.process == pid then
-      info.threadCount = info.threadCount+1
-    end
-  end
+  info.threadCount = -1
+  info.microtaskQueueCount = #p.microtaskQueue
+  info.eventQueueCount = #p.eventQueue
 
   return info
 end

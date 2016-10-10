@@ -49,8 +49,8 @@ function shellFunc.get(what, a, b, c)
     for i=1, #list do
       local info = proc.getProcessInfo(list[i])
 
-      printf("  %s pid %d trustLevel %d nkobj %d nthreads %d",
-        info.name, info.id, info.trustLevel, info.kernelObjectCount, info.threadCount)
+      printf("  %s pid %d trustLevel %d nkobj %d nmicroQ %d neventQ %d",
+        info.name, info.id, info.trustLevel, info.kernelObjectCount, info.microtaskQueueCount, info.eventQueueCount)
     end
   elseif what == "kobjects" or what == "kernelObjects" then
     local pid = tonumber(a)

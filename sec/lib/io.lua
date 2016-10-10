@@ -10,7 +10,7 @@ io.debug = true
 --STDIN (if an export) defines "read"
 
 local function debug(...)
-	if io.debug then os.logf("IOLIB", ...) end
+  if io.debug then os.logf("IOLIB", ...) end
 end
 
 local stdout, stdin, stdinLF, stderr, mutex
@@ -21,12 +21,12 @@ function io.init()
   if init then
     return kobject.newCompletedFuture()
   end
-  
+
   if not initing then
     async(function()
       debug "Creating Kernel Mutex"
       mutex = kobject.newMutex()
-  
+
       debug "Getting IO Streams"
 
       stdout = proc.getEnv "STDOUT"
@@ -95,69 +95,69 @@ function io.init()
 
       kobject.declareWeak(stdin)
       kobject.declareWeak(stdinLF)
-    
+
       init = true
-    
+
       for i, completer in pairs(initCompleters) do
         completer:complete()
       end
       initCompleters = nil
     end)
-    
+
     initing = true
   end
-  
+
   local completer, future = kobject.newFuture()
   initCompleters[#initCompleters+1] = completer
   return future
 end
 
 local function read(stream, streamLF, amount)
-	amount = amount or math.huge
-	if kobject.isA(stream, "ExportClient") then
+  amount = amount or math.huge
+  if kobject.isA(stream, "ExportClient") then
     local out = stream:invoke("read", amount)
-		return out
-	else
-		--reading bytes--
-		if type(amount) == "number" then
-			if amount == 1 then
-				return stdin:single()
-			else
-				return stdin:count(amount):join()
-			end
-		elseif amount == "*l" then
-			return read(streamLF, nil, 1)
-		end
-	end
+    return out
+  else
+    --reading bytes--
+    if type(amount) == "number" then
+      if amount == 1 then
+        return stdin:single()
+      else
+        return stdin:count(amount):join()
+      end
+    elseif amount == "*l" then
+      return read(streamLF, nil, 1)
+    end
+  end
 end
 
 function io.write(...)
   local s = table.concat(table.pack(...))
-	io.init():after(function()
+  io.init():after(function()
     stdout:send(s)
   end)
 end
 
 function io.read(amount)
-	return io.init():after(function()
+  return io.init():after(function()
     return read(stdin, stdinLF, amount)
   end)
 end
 
 function print(...)
-	local tab = table.pack(...)
+  local tab = table.pack(...)
 
-	if tab.n == 0 then io.write("\n") return end
+  if tab.n == 0 then io.write("\n") return end
 
-	for i=1, tab.n do
-		tab[i] = tostring(tab[i])
-	end
+  for i=1, tab.n do
+    tab[i] = tostring(tab[i])
+  end
 
-	io.write(table.concat(tab, "  ").."\n")
+  io.write(table.concat(tab, "  ").."\n")
 end
 
 function printf(fmt, ...)
-	return print(string.format(fmt, ...))
+  return print(string.format(fmt, ...))
 end
 
 return io

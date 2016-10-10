@@ -1,11 +1,11 @@
 function kapi.patches.require(env, pid, trustLevel)
-	if pid > 0 then
-		env.package = {
-			loaded = {filesystem = env.fs},
-			path = "/sec/lib/?.lua;/sec/lib/?/init.lua;/usr/lib/?.lua;/usr/lib/?/init.lua;./?.lua;./?/init.lua"
-		}
+  if pid > 0 then
+    env.package = {
+      loaded = {filesystem = env.fs},
+      path = "/sec/lib/?.lua;/sec/lib/?/init.lua;/usr/lib/?.lua;/usr/lib/?/init.lua;./?.lua;./?/init.lua"
+    }
 
-		env.package.getRequireSource = function(name)
+    env.package.getRequireSource = function(name)
       return env.async(function()
         local pathname = name:gsub("%.", "/")
 
@@ -34,7 +34,7 @@ function kapi.patches.require(env, pid, trustLevel)
         end
 
         local path = env.await(future)
-      
+
         if path then
           local handle = env.await(env.fs.open(path, "r"))
           local src = env.await(env.fs.readAsStream(handle, math.huge):join())
@@ -44,8 +44,8 @@ function kapi.patches.require(env, pid, trustLevel)
           error("Package not found!")
         end
       end)
-		end
-    
+    end
+
     env.package.loadRequireSource = function(src, name)
       local f, e = load(src, "="..name, nil, proc.getGlobals())
       if not f then error(e) end
@@ -53,16 +53,16 @@ function kapi.patches.require(env, pid, trustLevel)
       env.package.loaded[name] = pkg
       return pkg
     end
-    
+
     -- TODO: localFuture API that contains a future that executes locally (no marshall errors)
     env.require = function(name)
       if env.package.loaded[name] then
         return env.package.loaded[name]
       end
-      
+
       return env.package.loadRequireSource(env.await(env.package.getRequireSource(name)), name)
     end
-    
+
     env.requireAll = function(tab, ...)
       if type(tab) == "string" then
         tab = table.pack(tab, ...)
@@ -72,14 +72,14 @@ function kapi.patches.require(env, pid, trustLevel)
       local completer, future = kobject.newFuture()
       local loadCount = 0
       local packageCount = tab.n or #tab
-      
+
       local function incrementCount()
         loadCount = loadCount+1
         if packageCount == loadCount then
           completer:complete()
         end
       end
-      
+
       for i=1, packageCount do
         local pkg = tab[i]
         env.package.getRequireSource(name):after(function(src)
@@ -94,7 +94,7 @@ function kapi.patches.require(env, pid, trustLevel)
           incrementCount()
         end)
       end
-      
+
       env.await(future)
       if errors[1] then
         error(table.concat(errors, "\n"))
@@ -102,5 +102,5 @@ function kapi.patches.require(env, pid, trustLevel)
         return table.unpack(loaded, 1, packageCount)
       end
     end
-	end
+  end
 end

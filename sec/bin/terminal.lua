@@ -147,6 +147,8 @@ local function startTerminalHandlerThread(state)
               await(state.gpu:invoke("copy", 1, 1, w, h, 0, -1))
               state.cursorY = h
             end
+            -- Clear line
+            await(state.gpu:invoke("fill", state.cursorX, state.cursorY, w, 1, ' '))
           else
             break
           end

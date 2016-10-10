@@ -1,3 +1,7 @@
+--filesystem.lua: Broker access to files by using a Kernel Export
+  -- This is also in charge of filesystem permissions
+  -- zero's mod_perm asks this service if a process can modify a file
+
 local fs = {}
 
 --filesystem manages ONLY file access
@@ -15,13 +19,7 @@ function ComponentObject.__index:init(address)
 end
 
 function ComponentObject.__index:invoke(method, ...)
-	local completer, future = kobject.newFuture()
-	
-	proc.createThread(function(...)
-		completer:complete(component.invoke(self.address, method, ...))
-	end, nil, table.pack(...))
-	
-	return future
+	return async(component.invoke, self.address, method, ...)
 end
 
 function ComponentObject.__index:isDisconnected()
@@ -98,11 +96,11 @@ local function getMountAndPath(path, pid)
 			if type(workdir) ~= "string" then
 				workdir = ""
 			end
-			
+
 			path = combine(workdir, path)
 		end
 	end
-	
+
 	local spath
 	path,spath = fixPath(path)
 	if mounts[path] then
@@ -122,17 +120,17 @@ function fs.mount(pid, path, object)
 	--pid needs to be trusted (<= 1000)
 	--path can be anything
 	--object can either be a component address, or an kExport
-	
+
 	if proc.isTrusted(pid) then
 		checkArg(1, path, "string")
 		checkArg(2, object, "table", "string")
-		
+
 		if type(object) == "string" then
 			local cobject = setmetatable({}, ComponentObject)
 			cobject:init(object)
 			object = cobject
 		end
-		
+
 		local spath
 		path,spath = fixPath(path)
 		--if not canModify(path) then return false, "permission denied" end
@@ -168,28 +166,29 @@ function fs.open(pid, path, mode)
 	checkArg(1, path, "string")
 	mode = mode or "r"
 	checkArg(2, mode, "string", "nil")
-	
+
 	local mount, subpath = getMountAndPath(path, pid)
-	
+
 	local fh, err = await(mount:invoke("open", subpath))
-	
+
 	if fh then
 		local handle = kobject.newHandle()
-		
+
 		fileHandles[handle:getId()] = {handle = fh, mount = mount, path = path, subpath = subpath, owner = pid}
 		kHandleReferences[handle] = true
-		
+
 		return handle
 	else
 		return nil, err
 	end
 end
+fs.open = makeAsync(fs.open)
 
 function fs.getHandleInfo(pid, handle)
 	kobject.checkType(handle, "Handle")
-	
+
 	local handleRef = fileHandles[handle:getId()]
-	
+
 	return {
 		path = handleRef.path,
 		subpath = handleRef.subpath,
@@ -201,11 +200,12 @@ function fs.read(pid, handle, bytes)
 	kobject.checkType(handle, "Handle")
 	bytes = bytes or math.huge
 	checkArg(2, bytes, "number", "nil")
-	
+
 	local handleRef = fileHandles[handle:getId()]
-	
+
 	return await(handleRef.mount:invoke("read", handleRef.handle, bytes))
 end
+fs.read = makeAsync(fs.read)
 
 --TODO: Should this be exported here?
 --This spawns a new thread internal to the filesystem, but we could make
@@ -213,17 +213,17 @@ end
 function fs.readAsStream(pid, handle, blockSize)
 	kobject.checkType(handle, "Handle")
 	checkArg(2, blockSize, "number", "nil")
-	
+
 	blockSize = blockSize or math.huge
-	
+
 	local handleRef = fileHandles[handle:getId()]
 	local readStream, writeStream = kobject.newStream()
 	kobject.setLabel(readStream, "Read Stream for "..handleRef.path)
-	
-	proc.createThread(function()
+
+	async(function()
 		while true do
-			local bytes = fs.read(pid, handle, blockSize)
-			
+			local bytes = await(fs.read(pid, handle, blockSize))
+
 			if bytes then
 				writeStream:send(bytes)
 			else
@@ -231,27 +231,28 @@ function fs.readAsStream(pid, handle, blockSize)
 			end
 		end
 		writeStream:close()
-	end, "read_stream_"..handleRef.path.."_"..handle:getId())
-	
+	end) --, "read_stream_"..handleRef.path.."_"..handle:getId())
+
 	return readStream
 end
 
 function fs.write(pid, handle, bytes)
 	kobject.checkType(handle, "Handle")
 	checkArg(2, bytes, "string")
-	
+
 	local handleRef = fileHandles[handle:getId()]
-	
+
 	return await(handleRef.mount:invoke("write", handleRef.handle, bytes))
 end
+fs.write = makeAsync(fs.write)
 
 function fs.close(pid, handle)
 	kobject.checkType(handle, "Handle")
-	
+
 	local handleRef = fileHandles[handle:getId()]
-	
+
 	await(handleRef.mount:invoke("close", handleRef.handle))
-	
+
 	fileHandles[handle:getId()] = nil
 	for khandle in pairs(kHandleReferences) do
 		if khandle:getId() == handle:getId() then
@@ -259,17 +260,28 @@ function fs.close(pid, handle)
 			break
 		end
 	end
-	
+
 	return true
 end
+fs.close = makeAsync(fs.close)
 
 function fs.exists(pid, path)
 	checkArg(1, path, "string")
-	
+
 	local mount, subpath = getMountAndPath(path, pid)
-	
+
 	return await(mount:invoke("exists", subpath))
 end
+fs.exists = makeAsync(fs.exists)
+
+function fs.list(pid, path)
+	checkArg(1, path, "string")
+
+	local mount, subpath = getMountAndPath(path, pid)
+
+	return await(mount:invoke("list", subpath))
+end
+fs.list = makeAsync(fs.list)
 
 --Init:
 
@@ -287,7 +299,7 @@ fs.open(ps.getCurrentProcess(), "/sec/etc/startup", "r"):after(function(handle)
 		os.logf("FS", "%s", entire)
 		fs.close(ps.getCurrentProcess(), handle)
 	end)
-	
+
 	--[[:listen(function(bytes)
 		os.logf("FS", "%s", bytes)
 	end):onClose(function()
@@ -296,7 +308,7 @@ fs.open(ps.getCurrentProcess(), "/sec/etc/startup", "r"):after(function(handle)
 	end)]]
 end)]=]
 
-proc.createThread(function()
+async(function()
 	while true do
 		sleep(10)
 		for handle in pairs(kHandleReferences) do
@@ -306,7 +318,7 @@ proc.createThread(function()
 			end
 		end
 	end
-end, "filesystem_handle_closer")
+end)
 
 --Service Exporting:
 

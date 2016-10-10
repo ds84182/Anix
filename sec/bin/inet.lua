@@ -22,6 +22,8 @@ inet.requestOn(interfaceHandle, "http://example.com")
 inet.connectOn(interfaceHandle, "irc.esper.net", 6667)
 ]]
 
+async(function()
+
 function debug(...)
 	os.logf("INET", ...)
 end
@@ -147,43 +149,34 @@ function ComponentObject.__index:init(address)
 end
 
 function ComponentObject.__index:invoke(method, ...)
-	local completer, future = kobject.newFuture()
-	
 	if method == "request" or method == "connect" then
 		local obj, err
-		proc.createThread(function(...)
-			obj, err = component.invoke(self.address, method, ...)
-			completer:complete(true)
-		end, nil, table.pack(...))
 		
-		--create a handle
-		future = future:after(function()
-			if not obj then error(err, 0) end
+    return async(function(...)
+			obj, err = component.invoke(self.address, method, ...)
+		end, ...):after(function()
+      if not obj then error(err, 0) end
 			
 			local handle = kobject.newHandle()
 			self.handleToObject[handle] = obj
 			
 			return handle
-		end)
+    end)
 	elseif method == "read" then
 		local handle, count = ...
 		local object = self.handleToObject[handle]
 		
-		proc.createThread(function()
-			completer:complete(object:read(count or math.huge))
-		end, nil, nil)
+		return async(object.read, object, count or math.huge)
 	elseif method == "response" then
 		local handle = ...
 		local object = self.handleToObject[handle]
 		
-		proc.createThread(function()
-			completer:complete(object:response())
-		end, nil, nil)
+    return async(object.response, object)
 	elseif method == "write" then
 		local handle, data = ...
 		local object = self.handleToObject[handle]
 		
-		proc.createThread(function()
+		return async(function()
 			while #data > 0 do
 				local count = object:write(data)
 				if count < #data then
@@ -193,20 +186,18 @@ function ComponentObject.__index:invoke(method, ...)
 				end
 			end
 			
-			completer:complete(true)
-		end, nil, nil)
+			return true
+		end)
 	elseif method == "close" then
 		local handle = ...
 		local object = self.handleToObject[handle]
 		
-		proc.createThread(function()
+		return async(function()
 			object:close()
 			self.handleToObject[handle] = nil
-			completer:complete(true)
-		end, nil, nil)
+			return true
+		end)
 	end
-	
-	return future
 end
 
 function ComponentObject.__index:isDisconnected()
@@ -240,13 +231,13 @@ dev.onComponentRemoved "internet" :listen(function(addr)
 	componentToInterfaceName[addr] = nil
 end)
 
-request("component0", "http://example.com"):after(function(handle)
+request("component0", "http://example.com"):after(makeAsync(function(handle)
 	debug("Request opened %s", handle)
 	local bytes = await(read(handle, 8))
 	debug("First 8 bytes %s", bytes)
 	await(close(handle))
 	debug("Closed")
-end)
+end))
 
 -- export api --
 
@@ -275,6 +266,10 @@ function inet.removeInterface(pid, name)
 end
 
 function inet.listInterfaces(pid)
+	if not perm.query(pid, "inet", true) then
+		error("Permission Denied")
+	end
+	
 	local list = {}
 	
 	for name in pairs(interfaces) do
@@ -319,3 +314,5 @@ end)
 kobject.setLabel(serviceExport, "Service::INET")
 
 service.registerGlobal("INET", serviceExportClient)
+
+end)

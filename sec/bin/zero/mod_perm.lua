@@ -159,7 +159,7 @@ local function getGroupsFromTarget(target)
 		
 		return nil
 	else
-		return assert(target.groupname, "Target cannot be coerced into username!")
+		return assert(target.groupname, "Target cannot be coerced into groupname!")
 	end
 end
 
@@ -171,7 +171,7 @@ function zeroapi.perm_query(pid, target, perm, default)
 	
 	if target.type == "filesystem" then
 		--ask the current filesystem service of the process
-		--internally, filesystem service implementations should not use perm.query to get permissions
+		--internally, filesystem service implementations should not use perm.query to get filesystem permissions
 		--it can present a security hole if the current process filesystem service ~= the calling filesystem service!
 		
 		local fs = zeroapi.service_get(pid, "FS")
@@ -181,7 +181,7 @@ function zeroapi.perm_query(pid, target, perm, default)
 		elseif not kobject.isA(fs, "ExportClient") then
 			return false, "Filesystem service is not an ExportClient"
 		else
-			return await(fs:invoke("queryPermission", target.path, formatTarget(target.context)))
+			return fs:invoke("queryPermission", target.path, target.context)
 		end
 	else
 		local domainLevel = domainLevels[target.type]
@@ -255,7 +255,7 @@ function zeroapi.perm_set(pid, target, perm, value)
 	
 	if target.type == "filesystem" then
 		--ask the current filesystem service of the process
-		--internally, filesystem service implementations should not use perm.query to get permissions
+		--internally, filesystem service implementations should not use perm.query to get filesystem permissions
 		--it can present a security hole if the current process filesystem service ~= the calling filesystem service!
 		
 		local fs = zeroapi.service_get(pid, "FS")
@@ -266,7 +266,7 @@ function zeroapi.perm_set(pid, target, perm, value)
 			return false, "Filesystem service is not an ExportClient"
 		else
 			if zeroapi.perm_query(pid, pid, "filesystem.changePermissions") then
-				return await(fs:invoke("setPermission", target.path, formatTarget(target.context), value))
+				return fs:invoke("setPermission", target.path, formatTarget(target.context), value)
 			else
 				return false, "Permission Denied - Cannot change filesystem permissions"
 			end

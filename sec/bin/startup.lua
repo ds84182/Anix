@@ -10,7 +10,7 @@ local function split(line, pattern)
 	return tab
 end
 
-local function execute(path, options)
+local execute = makeAsync(function(path, options)
 	local handle, err = await(fs.open(path, "r"))
 	if handle then
 		local source = await(fs.readAsStream(handle, math.huge):join())
@@ -26,7 +26,7 @@ local function execute(path, options)
 	else
 		os.logf("EXECUTE", "Error while starting %s: %s", path, err)
 	end
-end
+end)
 
 local a = os.clock()
 fs.open("/sec/etc/startup", "r"):after(function(handle)
@@ -47,7 +47,7 @@ fs.open("/sec/etc/startup", "r"):after(function(handle)
 					local key,val = opt:match("^(.-)=(.+)$")
 					
 					if key then
-						--TODO: Parse val
+						--TODO: Parse val for a list or something
 						options[key] = val
 					else
 						os.logf("MAIN", "%s", opt)

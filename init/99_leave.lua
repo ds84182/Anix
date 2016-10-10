@@ -1,28 +1,9 @@
+-- Leaves the init code after all init files have been loaded globally
+-- It starts process zero with the kernel signal stream and then jumps to process management
+
 function LeaveINIT()
   os.log("LEAVEINIT", "Leaving INIT")
   os.log("LEAVEINIT", "Starting 'zero'")
-
-  --[==[local ws, rs = kobject.newStream()
-  local ws2, rs2 = kobject.newStream()
-
-  ps.spawn([[
-    local ws, rs = ...
-    ws:send({"TP", "Test process says hi"})
-
-    rs:listen(function(f)
-      ws:send({"TP", "Got '"..f.."' from kernel stream!"})
-    end)
-  ]], "zero", {ws, rs2})
-
-  rs:listen(function(message)
-    os.log(table.unpack(message))
-
-    --[[for i, v in pairs(kobject.objects) do
-      os.logf("TEST", "Kernel object %s owned by %d", tostring(i), v.owner)
-    end]]
-  end)
-
-  ws2:send("Hello!")]==]
 
   local bootfs = component.proxy(computer.getBootAddress())
 
@@ -41,36 +22,10 @@ function LeaveINIT()
   kobject.setLabel(signalStream, "Kernel Signal Stream")
   assert(proc.spawn(table.concat(buffer), "zero", {signalStream}))
 
-  --[=[local export, exportClient = kobject.newExport({func = true}, function(method)
-    return method.."!"
-  end)
-
-  proc.spawn([[
-    os.log("ZERO", "one")
-    local rs, ws = kobject.newStream()
-    local completer, future = kobject.newFuture()
-
-    rs:listen(function(text)
-      os.log("ZERO", text)
-
-      if text == "doit" then
-        completer:complete()
-      end
-    end)
-
-    ws:send("Mom, please")
-
-    proc.createThread(function()
-      os.log("ONE", "two")
-      await(future)
-      os.log("ONE", "ONE!")
-    end)
-
-    ws:send("doit")
-
-    local exportClient = ...
-    ws:send(await(exportClient:invoke("func")))
-  ]], "zero", {exportClient})]=]
+  -- Recover some memory
+  bootfs = nil
+  buffer = nil
+  fh = nil
 
   proc.run(function(pps, minWait)
     local signal = table.pack(computer.pullSignal(pps and 0 or minWait))

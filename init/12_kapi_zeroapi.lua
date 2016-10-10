@@ -1,3 +1,5 @@
+-- Utilities to communicate with the designated "zeroapi" instance
+
 function kapi.patches.zeroapi(env, pid, trustLevel)
   if pid > 0 then
     local api
@@ -33,18 +35,18 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
     env.hello = rpcCall "hello"
     env.getSignalStream = rpcCall "signalstream"
 
-    --service API
+    -- service API
     env.service.get = rpcCall "service_get"
     env.service.list = rpcCall "service_list"
     env.service.registerLocal = rpcCall "service_registerlocal"
     env.service.registerGlobal = rpcCall "service_registerglobal"
     env.service.await = rpcCall "service_await"
 
-    --permission API
+    -- permission API
     env.perm.query = rpcCall "perm_query"
     env.perm.set = rpcCall "perm_set"
 
-    --process API extension: fills in environmental variable API if not defined
+    -- process API extension: fills in environmental variable API if not defined
     env.proc.spawn = rpcCall "proc_spawn"
   end
 end

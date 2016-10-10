@@ -1,3 +1,5 @@
+-- Utility methods to do various things
+
 kapi.apienv.utils = {}
 
 function kapi.apienv.utils.newSplitter(delim)

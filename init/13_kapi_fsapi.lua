@@ -1,3 +1,5 @@
+-- Utilities to communicate with the fs service
+
 function kapi.patches.fsapi(env, pid, trustLevel)
   if pid > 0 then
     local fs

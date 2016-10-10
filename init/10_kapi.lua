@@ -1,6 +1,6 @@
+-- Manages sandboxing and the injection of the "kernel api"
 kapi = {}
 
-local proc_createThread = proc.createThread
 local proc_getCurrentProcess = proc.getCurrentProcess
 local loadfn = function(source, name, mode, env)
   env = env ~= nil and env or proc.getGlobals()
@@ -48,20 +48,12 @@ local apienv = {
     getTrustLevel = proc.getTrustLevel,
     isTrusted = proc.isTrusted,
     createThread = function(func, name, args, pid)
-      error("createThread is deprecated!", 2)
-      if pid and pid ~= proc_getCurrentProcess() then
-        os.logf("FAIL", "Attempt to spawn as %d", pid)
-        error("!")
-      end
-      return proc_createThread(func, name, args)
+      error("createThread has been removed!", 2)
     end,
     listProcesses = proc.listProcesses,
     getProcessInfo = proc.getProcessInfo,
     getProcessKernelObjects = proc.getProcessKernelObjects,
-    schedule = proc_schedule,
-    --[[createThread = function(func, name, args)
-      return proc.createThread(func, name, args)
-    end]]
+    schedule = proc_schedule
   },
   os = {},
   service = {},

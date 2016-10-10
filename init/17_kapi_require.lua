@@ -1,3 +1,5 @@
+-- Utility functions that add the package system implementation
+
 function kapi.patches.require(env, pid, trustLevel)
   if pid > 0 then
     env.package = {

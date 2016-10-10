@@ -1,6 +1,6 @@
 local io = {}
 
-io.debug = true
+io.debug = false
 
 --We use the STDIN, STDOUT, and STDERR env vars
 --They can be Streams or Exports

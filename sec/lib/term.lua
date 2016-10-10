@@ -1,6 +1,6 @@
 local term = {}
 
-term.debug = true
+term.debug = false
 
 local ready = false
 local srv = nil

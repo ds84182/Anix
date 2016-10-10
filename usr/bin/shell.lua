@@ -4,9 +4,6 @@ local term = require "term"
 local io = require "io"
 local path = require "path"
 
-term.debug = true
-io.debug = true
-
 print("Totally a shell v0.0")
 
 local deathStream = await(getSignalStream()):where(function(sig) return sig[1] == "process_death" end)
@@ -166,17 +163,20 @@ while true do
   yield() --let the screen flush
 
   local list = split(line, " ")
-  local commandName = table.remove(list, 1)
-  local func = shellFunc[commandName]
 
-  if func then
-    func(table.unpack(list))
-  else
-    local bin = findBinaryPath(commandName)
-    if bin then
-      execute(bin, list)
+  if #list > 0 then
+    local commandName = table.remove(list, 1)
+    local func = shellFunc[commandName]
+
+    if func then
+      func(table.unpack(list))
     else
-      print("Unknown Command: "..line)
+      local bin = findBinaryPath(commandName)
+      if bin then
+        execute(bin, list)
+      else
+        print("Unknown Command: "..line)
+      end
     end
   end
 end

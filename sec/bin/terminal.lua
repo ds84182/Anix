@@ -249,10 +249,8 @@ local function startTerminalHandlerThread(state)
     processEvent = makeAsync(processEvent)
 
     state.stream:listen(function(event)
-      os.logf("TERM", "Recv %s", event.type)
       state.mutex:performAtomic(processEvent, event):after(function(value)
         if event.done and kobject.isA(event.done, "Completer") then
-          os.logf("TERM", "%s %s %s", event.type, tostring(event.done), tostring(value))
           event.done:complete(value)
         end
       end)

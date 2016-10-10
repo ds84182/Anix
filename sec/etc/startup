@@ -1,5 +1,5 @@
 # list of files to run on startup
 # a line beginning with # denotes a comment
 /sec/bin/terminal.lua
-/sec/bin/inet.lua
+# /sec/bin/inet.lua
 /usr/bin/shell.lua untrusted

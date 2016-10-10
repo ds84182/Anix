@@ -15,7 +15,6 @@ function Future.__index:init()
   local data = objects[self].data
 
   if data.future then
-    --os.logf("KFUTURE", "Deleting old future %s %d", data.future.object, objects[data.future.object].owner)
     kobject.delete(data.future.object) --delete older futures binded to the completer
   end
 
@@ -57,9 +56,16 @@ function Future.__index:after(callback, errorHandler)
       end
     end
     data.future.errorHandler = function(err)
-      local nerr = errorHandler and errorHandler(err) or nil
-      if nerr and kobject.isValid(completer) then
-        completer:error(nerr)
+      if errorHandler then
+        err = errorHandler(err)
+      end
+
+      if not err then return end
+
+      if kobject.isValid(completer) then
+        completer:error(err)
+      else
+        error(err)
       end
     end
 
@@ -88,11 +94,12 @@ function Future.__index:onNotification(d)
       if data.future.errorHandler then
         proc.scheduleMicrotask(data.future.errorHandler, d, objects[self].owner)
       else
-        os.logf("KFUTURE", "Error in %s: %s", self, d[1])
+        proc.scheduleMicrotask(function(err)
+          error(err)
+        end, d, objects[self].owner)
       end
     end
 
-    --os.logf("KFUTURE", "%s completed %d", self, objects[self].owner)
     data.future = nil
     if kobject.isValid(self) then --dont delete if the object is not valid
       kobject.delete(self)
@@ -120,7 +127,7 @@ function Completer.__index:complete(...)
     end, function(err)
       self:error(err)
     end)
-    return
+    return true
   end
 
   local data = objects[self].data
@@ -145,7 +152,6 @@ function Completer.__index:error(message)
 
   local data = objects[self].data
   if data.future then
-    os.log("KFUTURE", message)
     data.future.object:notify({type = "error", message})
     if kobject.isValid(self) then --dont delete if the object is not valid
       kobject.delete(self)

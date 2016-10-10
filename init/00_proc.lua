@@ -136,7 +136,7 @@ function proc.run(callback, ss)
             if not success then
               process.dead = true
               process.reason = {peaceful = false, error = err}
-              os.logf("PROC", "Error %s", err)
+              os.logf("PROC", "Error in %s (%d): %s", process.name, id, err)
               break
             end
           end

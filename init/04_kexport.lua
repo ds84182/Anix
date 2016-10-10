@@ -107,7 +107,6 @@ function Export.__index:update()
 
     if data.handler then
       proc.scheduleMicrotask(function()
-        --r = kobject.copyFor(message.data.reply, r)
         local ret = table.pack(xpcall(data.handler, debug.traceback, message.data.method, message.data.arguments, message.source))
 
         if ret[1] then

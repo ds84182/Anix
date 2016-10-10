@@ -82,7 +82,13 @@ function kapi.patches.threading(env, pid, trustLevel)
     local completer, future = env.kobject.newFuture()
     local data = {}
     local coro = coroutine.create(function(...)
-      completer:complete(func(...))
+      local res = table.pack(xpcall(func, debug.traceback, ...))
+
+      if res[1] then
+        completer:complete(table.unpack(res, 2, res.n))
+      else
+        completer:error(res[2])
+      end
     end)
     threadData[coro] = data
     proc.schedule(function(...)

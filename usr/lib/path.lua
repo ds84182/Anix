@@ -25,8 +25,12 @@ end
 
 function path.fixPath(p)
 	checkArg(1, p, "string")
-	local sp = splitPath(p)
+	local sp = path.splitPath(p)
 	return (p:sub(1,1) == "/" and "/" or "")..table.concat(sp,"/"), sp
+end
+
+function path.isAbsolute(p)
+	return p:sub(1,1) == "/"
 end
 
 function path.isChildOf(parent,child)

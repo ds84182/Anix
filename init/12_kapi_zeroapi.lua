@@ -7,24 +7,24 @@ function kapi.patches.zeroapi(env, pid, trustLevel)
 			
 			return api:invoke("init")
 		end
+    
+    local function wrapAsync(func)
+      return function(...)
+        return env.async(func, ...)
+      end
+    end
 		
 		local function rpcCall(method)
-			return function(...)
+			return wrapAsync(function(...)
 				if not api then
 					env.await(env.initAPI())
 				end
 				
-				return api:invoke(method, ...)
-			end
+				return env.await(api:invoke(method, ...))
+			end)
 		end
-	
-		function env.os.log(...)
-			if not api then
-				env.await(env.initAPI())
-			end
-			
-			api:invoke("log", ...)
-		end
+    
+    env.os.log = rpcCall "log"
 		
 		function env.os.logf(tag, format, ...)
 			env.os.log(tag, format:format(...))

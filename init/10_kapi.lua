@@ -1,9 +1,30 @@
 kapi = {}
 
+local proc_createThread = proc.createThread
+local proc_getCurrentProcess = proc.getCurrentProcess
+local loadfn = function(source, name, mode, env)
+	env = env ~= nil and env or proc.getGlobals()
+	return load(source, name, mode, env)
+end
+local proc_schedule = function(func, args, delay)
+  if delay and delay > 0 then
+    return proc.scheduleEvent(func, args, delay)
+  end
+  return proc.scheduleMicrotask(func, args)
+end
+
+local zeroenv = {
+  proc = {
+    schedule = proc_schedule
+  },
+  load = loadfn
+}
+
 local apienv = {
 	kobject = {
 		newStream = kobject.newStream,
 		newFuture = kobject.newFuture,
+    newCompletedFuture = kobject.newCompletedFuture,
 		newExport = kobject.newExport,
 		newHandle = kobject.newHandle,
 		newMutex = kobject.newMutex,
@@ -26,10 +47,18 @@ local apienv = {
 		getSecureStorage = proc.getSecureStorage,
 		getTrustLevel = proc.getTrustLevel,
 		isTrusted = proc.isTrusted,
-		createThread = proc.createThread,
+		createThread = function(func, name, args, pid)
+      error("createThread is deprecated!", 2)
+      if pid and pid ~= proc_getCurrentProcess() then
+        os.logf("FAIL", "Attempt to spawn as %d", pid)
+        error("!")
+      end
+      return proc_createThread(func, name, args)
+    end,
 		listProcesses = proc.listProcesses,
 		getProcessInfo = proc.getProcessInfo,
 		getProcessKernelObjects = proc.getProcessKernelObjects,
+    schedule = proc_schedule,
 		--[[createThread = function(func, name, args)
 			return proc.createThread(func, name, args)
 		end]]
@@ -37,11 +66,7 @@ local apienv = {
 	os = {},
 	service = {},
 	perm = {},
-	load = function(source, name, mode, env)
-		env = env ~= nil and env or proc.getGlobals()
-		
-		return load(source, name, mode, env)
-	end
+	load = loadfn
 }
 
 kapi.apienv = apienv
@@ -59,7 +84,11 @@ local function copyInto(dest, src)
 end
 
 function kapi.patch(env, pid, trustLevel)
-	copyInto(env, apienv)
+  if pid > 0 then
+    copyInto(env, apienv)
+  else
+    copyInto(env, zeroenv)
+  end
 	
 	for i, v in pairs(kapi.patches) do
 		v(env, pid, trustLevel)

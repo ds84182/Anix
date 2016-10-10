@@ -34,30 +34,30 @@ local isMarshallable, copy
 -- @treturn string|nil Error Message if the object is not marshallable
 function kobject.isMarshallable(v, hit)
 	if hit and hit[v] then return true end --Table that was already hit before
-	
+
 	local t = type(v)
 	if t == "table" then
 		if objects[v] then
 			if v.notMarshallable then
 				return false, "contains unmarshallable "..tostring(v)
 			end
-			
+
 			return true --Kernel Objects are safe to Marshall
 		end
-		
+
 		if getmetatable(v) ~= nil then return false, "contains metatable" end --Metatables are unsafe to Marshall
-		
+
 		hit = hit or {}
 		hit[v] = true
-		
+
 		for i, v in pairs(v) do
 			local m, reason = isMarshallable(i, hit)
 			if not m then return m, reason end --Index is not Marshallable
-			
+
 			m, reason = isMarshallable(v, hit)
 			if not m then return m, reason end --Value is not Marshallable
 		end
-		
+
 		return true
 	elseif t == "thread" then
 		return false, "contains thread" --Threads are not Marshallable
@@ -77,7 +77,7 @@ isMarshallable = kobject.isMarshallable
 -- @param val The value to check
 function kobject.checkMarshallable(argn, val)
 	local m, why = isMarshallable(val)
-	
+
 	if not m then
 		error(("bad argument #%d (%s not marshallable: %s)"):format(argn, type(val), why), 3)
 	end
@@ -92,19 +92,19 @@ end
 function kobject.copy(v, pid, cache)
 	--copys a value for marshall
 	--this also gets a pid passed in for kobject clone ownership
-	
+
 	--if not cache then
 	--	os.log("KOBJECT", "Copy!")
 	--end
-	
+
 	if cache and cache[v] then return cache[v] end
 	cache = cache or {}
-	
+
 	local t = type(v)
 	if t == "table" then
 		if objects[v] then
 			local clone
-			
+
 			local instances = dataToInstances[objects[v].data]
 			for instance in pairs(instances) do
 				if objects[instance].owner == pid and objects[instance].metatable == objects[v].metatable and objects[instance].identity == objects[v].identity then
@@ -112,30 +112,30 @@ function kobject.copy(v, pid, cache)
 					break
 				end
 			end
-			
+
 			if not clone then
 				clone = kobject.clone(v)
-			
+
 				if pid then
 					kobject.own(clone, pid)
 				end
 			end
-			
+
 			cache[v] = clone
-			
+
 			return clone
 		end
-		
+
 		local nt = {}
-		
+
 		cache[v] = nt
-		
+
 		for i, v in pairs(v) do
 			local ni = copy(i, pid, cache)
 			local nv = copy(v, pid, cache)
 			nt[ni] = nv
 		end
-		
+
 		return nt
 	else
 		return v
@@ -154,27 +154,27 @@ function kobject.mt(m)
 		local o = objects[s].data
 		return o.label and m.__type..": "..o.label or tostring(o.id):gsub("table", m.__type)
 	end
-	
+
 	m.__metatable = "Not allowed."
-	
+
 	if not m.__newindex then
 		m.__newindex = function()
 			error("Bad.")
 		end
 	end
-	
+
 	m.__gc = function(s)
 		if objects[s] then
 			--os.logf("KOBJECT", "Collecting %s owned by %d", tostring(s), objects[s].owner)
-		
+
 			local su, e = pcall(kobject.delete, s)
-			
+
 			if not su then
 				os.logf("KOBJECT", "Error in garbage collection: %s", e)
 			end
 		end
 	end
-	
+
 	m.__superclasses = {}
 	if m.__extend then
 		local current = m.__extend
@@ -183,14 +183,14 @@ function kobject.mt(m)
 			m.__superclasses[current.__type] = true
 			current = current.__extend
 		end
-		
+
 		for i, v in pairs(m.__extend.__index) do
 			if not m.__index[i] then
 				m.__index[i] = v
 			end
 		end
 	end
-	
+
 	return m
 end
 
@@ -208,13 +208,13 @@ function kobject.new(metatable, ...)
 		identity = {},
 		metatable = metatable
 	}
-	
+
 	dataToInstances[objects[o].data] = setmetatable({[o] = true}, MODE_KEYS)
-	
+
 	if o.init then
 		o:init(...)
 	end
-	
+
 	return o
 end
 
@@ -234,7 +234,7 @@ end
 -- @treturn KObject A clone of the other KObject
 function kobject.clone(other, metatable, ...)
 	checkObject(1, other)
-	
+
 	--links the same data to a new kobject
 	metatable = metatable or objects[other].metatable
 	local o = setmetatable({}, metatable)
@@ -246,15 +246,15 @@ function kobject.clone(other, metatable, ...)
 		identity = oother.identity,
 		metatable = metatable
 	}
-	
+
 	dataToInstances[oother.data][o] = true
-	
+
 	if o.initClone then
 		o:initClone(other, ...)
 	elseif o.init then
 		o:init(...)
 	end
-	
+
 	return o
 end
 
@@ -266,7 +266,7 @@ end
 -- @todo Use XORShift to generate identities instead of using tables
 function kobject.divergeIdentity(obj)
 	checkObject(1, obj)
-	
+
 	objects[obj].identity = {}
 end
 
@@ -277,7 +277,7 @@ end
 function kobject.setLabel(obj, label)
 	checkObject(1, obj)
 	checkArg(2, label, "string")
-	
+
 	objects[obj].data.label = label
 end
 
@@ -286,7 +286,7 @@ end
 -- @treturn string Object label
 function kobject.getLabel(obj)
 	checkObject(1, obj)
-	
+
 	return objects[obj].data.label
 end
 
@@ -296,9 +296,9 @@ end
 -- @int[opt] pid Process to set the ownership to, or the current process
 function kobject.own(obj, pid)
 	checkObject(1, obj)
-	
+
 	pid = pid or (proc.getCurrentProcess() or -1)
-	
+
 	local o = objects[obj]
 	o.owner = pid
 	if not o.data.creator then
@@ -311,7 +311,7 @@ end
 -- @tparam KObject obj Object to remove the ownership from
 function kobject.disown(obj)
 	checkObject(1, obj)
-	
+
 	objects[obj].owner = nil
 end
 
@@ -323,7 +323,7 @@ end
 function kobject.hasSameOwners(a, b)
 	checkObject(1, a)
 	checkObject(2, b)
-	
+
 	return objects[a].owner == objects[b].owner
 end
 
@@ -333,7 +333,7 @@ end
 -- @treturn boolean Whether the system is running under the same process that owns the KObject
 function kobject.inOwnerProcess(obj)
 	checkObject(1, obj)
-	
+
 	return proc.getCurrentProcess() == objects[obj].owner
 end
 
@@ -352,11 +352,11 @@ end
 function kobject.delete(obj)
 	--os.logf("KOBJECT", "Deleting %s owned by %d", tostring(obj), objects[obj].owner)
 	checkObject(1, obj)
-	
+
 	if obj.delete then
 		obj:delete()
 	end
-	
+
 	dataToInstances[objects[obj].data][obj] = nil
 	objects[obj] = nil
 end
@@ -366,7 +366,7 @@ end
 -- @int pid Process to delete all the objects of
 function kobject.deleteProcessObjects(pid)
 	checkArg(1, pid, "number")
-	
+
 	for object, od in pairs(objects) do
 		if od.owner == pid then
 			kobject.delete(object)
@@ -380,15 +380,15 @@ end
 -- @treturn int The number of KObjects owned by a specific process
 function kobject.countProcessObjects(pid)
 	checkArg(1, pid, "number")
-	
+
 	local num = 0
-	
+
 	for object, od in pairs(objects) do
 		if od.owner == pid then
 			num = num+1
 		end
 	end
-	
+
 	return num
 end
 
@@ -398,19 +398,19 @@ end
 -- @treturn int The number of processes that own a reference to the KObject
 function kobject.countOwningProcesses(object)
 	checkObject(1, object)
-	
+
 	local notUniqueOwner = {}
 	local count = 0
-	
+
 	for instance in pairs(dataToInstances[objects[object].data]) do
 		if not notUniqueOwner[objects[instance].owner] then
 			notUniqueOwner[objects[instance].owner] = true
-			
+
 			count = count+1
 		end
 	end
 	assert(count ~= 0)
-	
+
 	return count
 end
 
@@ -477,7 +477,7 @@ end
 -- @treturn boolean Whether the KObject is valid or not
 function kobject.isValid(obj)
 	if not objects[obj] then return false end
-	
+
 	return true
 end
 
@@ -487,9 +487,9 @@ end
 -- @treturn boolean Whether the object is valid and subclasses the specified class
 function kobject.isA(obj, mt)
 	local o = objects[obj]
-	
+
 	if not o then return false end
-	
+
 	if type(mt) == "string" then
 		return mt == o.metatable.__type or o.metatable.__superclasses[mt]
 	elseif type(mt) == "table" and type(getmetatable(mt)) == "nil" then
@@ -544,10 +544,10 @@ function kobject.update() --this gets called by the kernel
 		else
 			o:onNotification(v)
 		end
-		
+
 		notificationList[o] = nil
 	end]]
-	
+
 	--update async kernel objects
 	--[[for o, v in pairs(kobject.objects) do
 		if v.owner == -1 and o.async then

@@ -106,16 +106,24 @@ function Export.__index:update()
 		--os.logf("RS", "Receive message %s", message)
 	
 		if data.handler then
-			proc.createThread(function()
+			proc.scheduleMicrotask(function()
 				--r = kobject.copyFor(message.data.reply, r)
-				local ret = table.pack(pcall(data.handler, message.data.method, message.data.arguments, message.source))
+				local ret = table.pack(xpcall(data.handler, debug.traceback, message.data.method, message.data.arguments, message.source))
 				
 				if ret[1] then
-					message.data.reply:complete(table.unpack(ret, 2, ret.n))
+          if kobject.isA(ret[2], "Future") then
+            ret[2]:after(function(...)
+              message.data.reply:complete(...)
+            end, function(err)
+              message.data.reply:error(err)
+            end)
+					else
+            message.data.reply:complete(table.unpack(ret, 2, ret.n))
+          end
 				else
 					message.data.reply:error(ret[2])
 				end
-			end, nil, nil, objects[self].owner)
+			end, {}, objects[self].owner)
 		end
 	end
 end

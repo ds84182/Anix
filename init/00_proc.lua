@@ -1,36 +1,10 @@
 proc = {}
 
-local currentThread = nil
+local currentProcess = nil
 
 local processes = {}
-local threads = {}
-local scheduleNext = {}
 
 local nextPID = 0
-local nextTID = 1
-
-local function createThread(coro, pid, name, args)
-	local id = nextTID
-	nextTID = nextTID+1
-	
-	threads[id] = {
-		thread = coro,
-		process = pid,
-		name = name or "thread "..id,
-		args = args or {},
-		firstResume = true,
-		error = nil,
-		peaceful = nil,
-		waiting = false,
-		id = id
-	}
-	
-	scheduleNext[#scheduleNext+1] = threads[id]
-	
-	--os.logf("PROC", "New thread %s (%d)", name or "thread "..id, id)
-	
-	return id
-end
 
 function proc.spawn(source, name, args, vars, trustLevel, parent)
 	checkArg(1,source,"string")
@@ -38,16 +12,16 @@ function proc.spawn(source, name, args, vars, trustLevel, parent)
 	checkArg(3,args,"table","nil")
 	checkArg(4,vars,"table","nil")
 	checkArg(5,trustLevel,"number","nil")
-	
+
 	parent = parent or (proc.getCurrentProcess() or -1)
-	
+
 	trustLevel = trustLevel or proc.getTrustLevel(parent)+1
-	
+
 	local currentTrustLevel = proc.getTrustLevel(parent)
 	if currentTrustLevel >= 1000 and trustLevel < currentTrustLevel then
 		error(("Given trust level (%d) is less than the current trust level (%d)."):format(trustLevel, currentTrustLevel))
 	end
-	
+
 	args = args or {}
 	do
 		local m, why = kobject.isMarshallable(args)
@@ -55,7 +29,7 @@ function proc.spawn(source, name, args, vars, trustLevel, parent)
 			error(("Arguments contain unmarshallable objects (%s)"):format(why))
 		end
 	end
-	
+
 	vars = vars or (currentThread and processes[currentThread.process].variables or {})
 	do
 		local m, why = kobject.isMarshallable(vars)
@@ -63,17 +37,17 @@ function proc.spawn(source, name, args, vars, trustLevel, parent)
 			error(("Environmental variables contain unmarshallable objects (%s)"):format(why))
 		end
 	end
-	
+
 	local globals = nextPID == 0 and kapi.newOverlay() or kapi.newSandbox()
 	kapi.patch(globals, nextPID, trustLevel)
-	
+
 	name = name or "process_"..nextPID
 	local func, err = load(source, "="..name, nil, globals)
 	if not func then return nil, err end
-	
+
 	local id = nextPID
 	nextPID = nextPID+1
-	
+
 	local object = {
 		globals = globals,
 		name = name,
@@ -81,154 +55,34 @@ function proc.spawn(source, name, args, vars, trustLevel, parent)
 		id = id,
 		parent = parent,
 		variables = kobject.copy(vars, id), --environmental variables
-		secureStorage = {} --secure process variables, like current user
+		secureStorage = {}, --secure process variables, like current user
+    microtaskQueue = {
+      {function()
+        os.logf("PROC", "Microtask queue test for pid %d", id)
+      end, {}}
+    },
+    eventQueue = {}
 	}
 	processes[id] = object
-	
-	object.mainThread = createThread(coroutine.create(func), id, "main thread", kobject.copy(args or {}, id))
-	
+  
+  proc.scheduleMicrotask(func, kobject.copy(args or {}, id), id)
+
 	os.logf("PROC", "Creating process \"%s\" with pid of %d, parent of %d, trust level %d", name, id, parent, trustLevel)
 	return id
 end
 
-function proc.createThread(func, name, args, pid)
-	pid = pid or (currentThread and currentThread.process or -1)
-	
-	do
-		local m, why = kobject.isMarshallable(args)
-		if not m then
-			error(("Arguments contain unmarshallable objects (%s)"):format(why))
-		end
-	end
-	
-	return createThread(coroutine.create(func), pid, name, kobject.copy(args or {}, pid))
+function proc.scheduleMicrotask(func, args, pid)
+  pid = pid or proc.getCurrentProcess() or -1
+  
+  local process = processes[pid]
+  process.microtaskQueue[#process.microtaskQueue+1] = {func, args}
 end
 
-function proc.createKernelThread(func, name, args)
-	return createThread(coroutine.create(func), -1, name, args)
-end
-
-local _TIMEOUT = {true, nil, "timeout"}
-
-local function resume(thread, ...)
-	local oldThread = currentThread
-	currentThread = thread
-	local r = table.pack(coroutine.resume(thread.thread, ...))
-	currentThread = oldThread
-	
-	local s = r[1]
-	if coroutine.status(thread.thread) == "dead" then
-		thread.peaceful = s
-		thread.error = s and "process has finished execution" or debug.traceback(thread.thread, r[2])
-		
-		if not thread.peaceful then
-			os.logf("PROC", "Process \"%s\" (%d) Thread \"%s\" (%d) has ended %s: %s", processes[thread.process].name, thread.process, thread.name, thread.id, thread.peaceful and "peacefully" or "violently", thread.error)
-			--TODO: If a thread dies this way, should we kill the process?
-			proc.kill(thread.process, {peaceful = false, error = thread.error})
-		end
-		
-		return
-	end
-	
-	if r[2] then
-		if kobject.isA(r[2], "Future") then
-			--await
-			thread.waiting = true
-			thread.waitingOn = r[2]
-			thread.waitUntil = (type(r[3]) == "number") and computer.uptime()+r[3] or math.huge
-			thread.resumeOnTimeout = (type(r[4]) == "table") and r[4] or _TIMEOUT
-			r[2]:after(function(...)
-				thread.waiting = false
-				thread.waitingOn = nil
-				thread.waitUntil = nil
-				thread.resumeOnTimeout = nil
-				thread.resume = table.pack(true, ...)
-				scheduleNext[#scheduleNext+1] = thread
-			end, function(err)
-				thread.waiting = false
-				thread.waitingOn = nil
-				thread.waitUntil = nil
-				thread.resumeOnTimeout = nil
-				thread.resume = {false, err}
-				scheduleNext[#scheduleNext+1] = thread
-			end)
-		elseif type(r[2]) == "number" then
-			--sleep
-			thread.waiting = true
-			thread.waitUntil = computer.uptime()+r[2]
-			thread.resume = {true}
-		else
-			thread.waiting = false
-			thread.waitingOn = nil
-			thread.waitUntil = nil
-			thread.resumeOnTimeout = nil
-			thread.resume = {false, "invalid thread yield value"}
-			scheduleNext[#scheduleNext+1] = thread
-		end
-	end
-end
-
-local function handleThread(id, thread)
-	if thread.waiting and thread.waitUntil then
-		if thread.waitUntil <= computer.uptime() then
-			thread.waiting = false
-			thread.waitUntil = nil
-			thread.resume = thread.resumeOnTimeout
-			thread.resumeOnTimeout = nil
-			thread.waitingOn = nil
-		end
-	end
-	
-	if (not thread.waiting) and (not thread.error) then
-		--os.logf("PROC", "Resume thread %s (%d)", thread.name, thread.id)
-		--local a = os.clock()
-		if thread.firstResume then
-			resume(thread, table.unpack(thread.args))
-			thread.firstResume = false
-		elseif thread.resume then
-			resume(thread, table.unpack(thread.resume))
-			thread.resume = nil
-		else
-			resume(thread, true)
-		end
-		--os.logf("PROC", "Thread time: %f", (os.clock()-a)*1000)
-	
-		if thread.error then
-			if (not thread.peaceful) and thread.parent == nil then
-				local term
-				if require then
-					term = require "term"
-				end
-				if term then
-					--error(tostring(v.error),0)
-					term.write(v.name.." "..tostring(thread.error).."\n")
-				end
-			end
-		
-			--[[local parent = thread.parent and processes[thread.parent] or nil
-			if parent then
-				parent.signalQueue[#parent.signalQueue+1] = {type = "child_death", child = i} --, source = {type = "kernel"}}
-			end
-			if processes[0] then
-				local zero = processes[0]
-				zero.signalQueue[#zero.signalQueue+1] = {type = "process_death", pid = i}
-			end
-			kobject.destroyProcessObjects(i)]]
-			--threads[id] = nil
-		end
-		
-		local sn = scheduleNext
-		scheduleNext = {}
-		for i=1, #sn do
-			if sn[i] ~= thread then
-				handleThread(sn[i].id, sn[i])
-			end
-		end
-	end
-end
-
-function proc.resumeThread(id)
-	handleThread(id, threads[id])
+function proc.scheduleEvent(func, args, delay, pid)
+  pid = pid or proc.getCurrentProcess() or -1
+  
+  local process = processes[pid]
+  process.eventQueue[#process.eventQueue+1] = {func, args, computer.uptime()+delay}
 end
 
 local signalStream
@@ -242,11 +96,11 @@ function proc.run(callback, ss)
 	while true do
 		local executionCountdown = 64 --resume a maximum of 64 times before pullSignal
 		local pps = false
-	
+
 		while executionCountdown > 0 do
 			--execute processes--
 			minWait = math.huge
-			
+
 			--TODO: Actual scheduler that reorders threads depending on events
 			--For instance, newly spawned threads are in the first scheduler group
 			--Then threads that have a Future completed go in the second scheduler group
@@ -254,99 +108,100 @@ function proc.run(callback, ss)
 			--This way, latency is minimized across futures
 			--Also add direct resume, where new threads and threads that stopped waiting run next
 				--if they haven't run in this iteration before
-			
-			for id, thread in pairs(threads) do
-				handleThread(id, thread)
-			end
-			
-			--delete ended threads--
-			for id, thread in pairs(threads) do
-				if thread.error then
-					threads[id] = nil
-				end
-			end
-			
+      
+      for id, process in pairs(processes) do
+        currentProcess = process
+        
+        if not process.dead then
+          table.sort(process.eventQueue, function(a,b)
+            return a[3] < b[3]
+          end)
+        
+          while process.eventQueue[1] and process.eventQueue[1][3] <= computer.uptime() do
+            process.microtaskQueue[#process.microtaskQueue+1] = table.remove(process.eventQueue, 1)
+          end
+        
+          local start = computer.uptime()
+          while process.microtaskQueue[1] and computer.uptime()-start < 0.1 do
+            local mqt = table.remove(process.microtaskQueue, 1)
+            local func, args = mqt[1], mqt[2]
+            
+            local success, err
+            if args then
+              success, err = xpcall(func, debug.traceback, table.unpack(args, 1, args.n or #args))
+            else
+              success, err = xpcall(func, debug.traceback)
+            end
+            
+            if not success then
+              process.dead = true
+              process.reason = {peaceful = false, error = err}
+              os.logf("PROC", "Error %s", err)
+              break
+            end
+          end
+        end
+      end
+      currentProcess = nil
+
 			--very end...--
 			--test to see if any threads have pending signals--
 			pps = false
-			for id, thread in pairs(threads) do
-				minWait = math.min(minWait, (thread.waitUntil or math.huge)-computer.uptime())
-				if thread.error == nil and not thread.waiting then
-					pps = true
-					break
-				end
-			end
+      for id, process in pairs(processes) do
+        if process.microtaskQueue[1] then
+          pps = true
+          break
+        else
+          local pendingEvent = process.eventQueue[1]
+          if pendingEvent then
+            minWait = math.min(minWait, pendingEvent[3]-computer.uptime())
+          end
+        end
+      end
 			executionCountdown = executionCountdown-1
-			
+
 			if not pps then
 				break
 			end
 		end
-		
+
 		--check and end processes--
 		for id, process in pairs(processes) do
 			if proc.canEnd(id) then
 				os.logf("PROC", "Can end process %s (%d)", process.name, id)
 				kobject.deleteProcessObjects(id)
-				if proc.canEnd(id) then --some of the delete methods create new threads for their owner process
+				if proc.canEnd(id) then
+					--some of the delete methods create new threads for their owner process
+					--however, if the process is already dead (due to an error) we ignore them and continue
 					proc.reparentChildren(id)
 					processes[id] = nil
-					signalStream:send({"process_death", id, process.parent})
+					signalStream:send({"process_death", id, process.parent, process.reason or {peaceful = true}})
 				else
 					os.logf("PROC", "Process %d spawned new threads or objects in object deletion", id)
 				end
 			end
 		end
-		
+
 		callback(pps, minWait)
 	end
 end
 
 function proc.kill(pid, reason)
 	local process = processes[pid]
-	
+
 	os.logf("PROC", "Killing process %s (%d)", process.name, pid)
-	kobject.deleteProcessObjects(pid)
-	proc.reparentChildren(pid)
-	--kill threads
-	for id, thread in pairs(threads) do
-		if thread.process == pid and not thread.error then
-			thread.peaceful = false
-			thread.error = "process killed"
-		end
-	end
-	signalStream:send({"process_death", pid, process.parent, reason})
-end
-
-function proc.suspendThread()
-	coroutine.yield()
-end
-
-function proc.waitThread(future, timeout, onTimeout)
-	local t = table.pack(coroutine.yield(future, timeout, onTimeout))
-	
-	if not t[1] then
-		error(t[2], 2)
-	end
-	
-	return table.unpack(t, 2)
-end
-
-function proc.sleepThread(time)
-	coroutine.yield(time)
+	process.dead = true
+	process.reason = reason
 end
 
 function proc.getCurrentProcess()
-	return currentThread and currentThread.process or nil
+	return currentProcess and currentProcess.id or nil
 end
 
 function proc.getTrustLevel(pid)
-	if pid then
-		if pid == -1 then return -1 end
-		return processes[pid].trustLevel or -1
-	end
-	
-	return currentThread and processes[currentThread.process].trustLevel or -1
+  pid = pid or proc.getCurrentProcess()
+	if pid == -1 then return -1 end
+	return processes[pid].trustLevel or -1
 end
 
 function proc.isTrusted(pid)
@@ -367,15 +222,15 @@ function proc.canProcessModifyProcess(pidA, pidB)
 	if (not processes[pidA]) or (not processes[pidB]) then
 		return false
 	end
-	
+
 	if pidA == pidB then
 		return true
 	end
-	
+
 	if processes[pidB].parent == pidA then
 		return true
 	end
-	
+
 	if proc.isTrusted(pidA) then
 		return true
 	end
@@ -384,24 +239,24 @@ end
 function proc.getEnv(name, pid)
 	checkArg(1, name, "string")
 	checkArg(2, pid, "number", "nil")
-	
+
 	pid = pid or proc.getCurrentProcess()
 	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
 		return nil, "Permission Denied"
 	end
-	
+
 	return kobject.copy(processes[pid].variables[name], proc.getCurrentProcess())
 end
 
 function proc.setEnv(name, value, pid)
 	checkArg(1, name, "string")
 	checkArg(3, pid, "number", "nil")
-	
+
 	pid = pid or proc.getCurrentProcess()
 	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
 		return nil, "Permission Denied"
 	end
-	
+
 	local m, why = kobject.isMarshallable(value)
 	if not m then
 		error(("Environmental variable contains unmarshallable objects (%s)"):format(why))
@@ -410,14 +265,14 @@ function proc.setEnv(name, value, pid)
 end
 
 function proc.listEnv(env, pid)
-	checkArg(1,env,"table","nil")
+	checkArg(1, env, "table","nil")
 	checkArg(2, pid, "number", "nil")
-	
+
 	pid = pid or proc.getCurrentProcess()
 	if not proc.canProcessModifyProcess(proc.getCurrentProcess(), pid) then
 		return nil, "Permission Denied"
 	end
-	
+
 	env = env or {}
 	for name, value in pairs(processes[pid].variables) do
 		env[name] = kobject.copy(value, proc.getCurrentProcess())
@@ -427,31 +282,30 @@ end
 
 function proc.getSecureStorage(pid)
 	checkArg(2, pid, "number", "nil")
-	
+
 	pid = pid or proc.getCurrentProcess()
-	
+
 	if not proc.isTrusted() then
 		return nil, "Permission Denied"
 	end
-	
+
 	return processes[pid].secureStorage
 end
 
 function proc.getGlobals(pid)
 	pid = pid or proc.getCurrentProcess()
-	
+
 	return processes[pid].globals
 end
 
 function proc.canEnd(pid)
-	if processes[pid] then
-		for id, thread in pairs(threads) do
-			if thread.process == pid then
-				os.logf("PROC", "Thread belonging to %d: %s", pid, thread.name)
-				return false
-			end
-		end
-		
+  local process = processes[pid]
+	if process then
+    if process.dead then return true end
+    if process.microtaskQueue[1] or process.eventQueue[1] then
+      return false
+    end
+
 		--check if we have any thread spawning kernel objects--
 		--also, check if those objects have any references to itself in other processes if they spawn threads externally
 			--(from other processes, not CPU events or anything super<process>natural)
@@ -463,13 +317,13 @@ function proc.canEnd(pid)
 				and (object.threadSpawningInternal and false or kobject.countOwningProcesses(object) > 1)
 				and ((not object.activatable) and true or (object:isActive()))
 				and not kobject.weakObjects[object] then
-				os.logf("PROC", "Process %d owns thread spawning object %s (opened %s, active %s)", pid, object,
+				--[[os.logf("PROC", "Process %d owns thread spawning object %s (opened %s, active %s)", pid, object,
 					((not object.closeable) and true or (not object:isClosed())),
-					((not object.activatable) and true or (object:isActive())))
+					((not object.activatable) and true or (object:isActive())))]]
 				return false
 			end
 		end
-		
+
 		return true
 	end
 end
@@ -484,42 +338,42 @@ end
 
 function proc.listProcesses()
 	local list = {}
-	
+
 	for id in pairs(processes) do
 		list[#list+1] = id
 	end
-	
+
 	table.sort(list)
-	
+
 	return list
 end
 
 function proc.getProcessInfo(pid)
 	checkArg(1, pid, "number")
-	
+
 	if not processes[pid] then
 		return nil
 	end
-	
+
 	local info = {}
-	
+
 	local p = processes[pid]
-	
+
 	info.id = pid
 	info.name = p.name
 	info.trustLevel = p.trustLevel
 	info.parent = p.parent
 	info.user = p.secureStorage.user
-	
+
 	info.kernelObjectCount = kobject.countProcessObjects(pid)
 	info.threadCount = 0
-	
+
 	for id, thread in pairs(threads) do
 		if thread.process == pid then
 			info.threadCount = info.threadCount+1
 		end
 	end
-	
+
 	return info
 end
 
@@ -527,167 +381,16 @@ function proc.getProcessKernelObjects(pid)
 	if pid and pid ~= proc.getCurrentProcess() and not proc.isTrusted() then
 		return nil, "Permission Denied"
 	end
-	
+
 	pid = pid or proc.getCurrentProcess()
-	
+
 	local list = {}
-	
+
 	for object, objectData in pairs(kobject.objects) do
 		if objectData.owner == pid then
 			list[#list+1] = object
 		end
 	end
-	
+
 	return list
 end
-
---[=[function ps.getInfo(id,info)
-	checkArg(1,id,"number")
-	checkArg(2,info,"table","nil")
-	if not processes[id] then
-		return nil, "No such process"
-	end
-	info = info or {}
-	local proc = processes[id]
-	info.name = proc.name
-	info.trustLevel = proc.trustLevel
-	info.error = proc.error
-	info.status = coroutine.status(proc.thread)
-	info.parent = proc.parent
-	info.peaceful = proc.peaceful
-	info.memory = proc.memory
-	return info
-end
-
-function ps.getTrustLevel(pid)
-	pid = pid or currentProcess
-	return pid == nil and -1 or processes[pid].trustLevel
-end
-
-function ps.remove(id)
-	--removes a process--
-	checkArg(1,id,"number")
-	if not processes[id] then
-		return false, "No such process"
-	end
-	local proc = processes[id]
-	if proc.kernelspace and not ps.isKernelMode() then
-		return false, "Permission denied"
-	end
-	processes[id] = nil
-end
-
-function ps.getCurrentProcess()
-	return currentProcess
-end
-
-function ps.getParentProcess(pid)
-	return processes[pid or currentProcess].parent
-end
-
-function ps.getProcessName(pid)
-	return processes[pid or currentProcess].name
-end
-
-function ps.getArguments()
-	return processes[currentProcess].args
-end
-
-function ps.getGlobals()
-	return processes[currentProcess].globals
-end
-
-function ps.hasEvents()
-	return #processes[currentProcess].signalQueue > 0
-end
-
-function ps.getEnv(name)
-	checkArg(1,name,"string")
-	return processes[currentProcess].variables[tostring(name)]
-end
-
-function ps.setEnv(name,value)
-	checkArg(1,name,"string")
-	local m, why = kobject.isMarshallable(value)
-	if not m then
-		error(("Environmental variable contains unmarshallable objects (%s)"):format(why))
-	end
-	processes[currentProcess].variables[tostring(name)] = value
-end
-
-function ps.listEnv(env)
-	checkArg(1,env,"table","nil")
-	env = env or {}
-	for name, value in pairs(processes[currentProcess].variables) do
-		env[name] = value
-	end
-	return env
-end
-
-function ps.pushProcessSignal(...)
-	local proc = processes[currentProcess]
-	proc.signalQueue[#proc.signalQueue+1] = {...}
-end
-
-function ps.yield(...)
-	local proc = processes[currentProcess]
-	table.insert(proc.signalQueue,{...})
-	coroutine.yield(0)
-end
-
-function ps.pushEventTo(id, event)
-	checkArg(1,id,"number")
-	if not processes[id] then
-		return nil, "No such process"
-	end
-	--TODO: Better permission management
-	--[[if ps.getTrustLevel() > 1000 then
-		return false, "Permission denied"
-	end]]
-	local proc = processes[id]
-	proc.signalQueue[#proc.signalQueue+1] = event
-end
-
-function ps.listProcesses(pl)
-	checkArg(1,pl,"table","nil")
-	--clear the table
-	pl = pl or {}
-	for i, v in ipairs(pl) do
-		pl[i] = nil
-	end
-	for i, v in pairs(processes) do
-		pl[#pl+1] = i
-	end
-	table.sort(pl)
-	return pl
-end
-
-function ps.pause(id,...)
-	local n = select("#",...)
-	if not id then
-		if n == 0 then
-			coroutine.yield()
-		else
-			coroutine.yield("pause",...)
-		end
-	else
-		if not processes[id] then
-			return nil, "No such process"
-		end
-		if not ps.isKernelMode() then
-			return false, "Permission denied"
-		end
-		processes[id].wait = nil
-	end
-end
-
-function ps.resume(id)
-	checkArg(1,id,"number")
-	if not processes[id] then
-		return nil, "No such process"
-	end
-	if not ps.isKernelMode() then
-		return false, "Permission denied"
-	end
-	processes[id].wait = 0
-end]=]
